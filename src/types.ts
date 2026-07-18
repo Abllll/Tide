@@ -15,6 +15,7 @@ export interface AudioFile {
 export interface UsbDevice {
   id: string;
   name: string;
-  space_available: string;
   mount_point: string;
+  available_space_gb: number;
+  total_space_gb: number;
 }
