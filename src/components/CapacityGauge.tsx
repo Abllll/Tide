@@ -1,4 +1,4 @@
-import { Droplet } from "lucide-react";
+import { WaterCanvas } from "@/components/WaterCanvas";
 import type { UsbDevice } from "@/types";
 
 interface CapacityGaugeProps {
@@ -6,35 +6,41 @@ interface CapacityGaugeProps {
   justSynced: boolean;
 }
 
-const LOW_SPACE_THRESHOLD_GB = 1;
-
-function parseFreeGb(spaceAvailable: string): number | null {
-  const match = spaceAvailable.match(/^([\d.]+)\s*GB/i);
-  if (!match) return null;
-  return parseFloat(match[1]);
-}
+const LOW_SPACE_THRESHOLD = 0.9;
+const TANK_WIDTH = 40;
+const TANK_HEIGHT = 24;
 
 export function CapacityGauge({ device, justSynced }: CapacityGaugeProps) {
   if (!device) {
     return (
-      <div className="inline-flex items-center gap-1.5 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-        <Droplet className="h-3.5 w-3.5" />
+      <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
+        <div
+          className="rounded-sm bg-muted-foreground/10"
+          style={{ width: TANK_WIDTH, height: TANK_HEIGHT }}
+        />
         No earpiece connected — files will save locally.
       </div>
     );
   }
 
-  const freeGb = parseFreeGb(device.space_available);
-  const isLow = freeGb !== null && freeGb < LOW_SPACE_THRESHOLD_GB;
+  const usedFraction = 1 - device.available_space_gb / device.total_space_gb;
+  const isLow = usedFraction >= LOW_SPACE_THRESHOLD;
 
   return (
     <div
-      className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium transition-transform duration-300 ${
+      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-transform duration-300 ${
         isLow ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"
       } ${justSynced ? "scale-105" : "scale-100"}`}
     >
-      <Droplet className="h-3.5 w-3.5" />
-      {device.name} · {device.space_available}
+      <div className="overflow-hidden rounded-sm" style={{ width: TANK_WIDTH, height: TANK_HEIGHT }}>
+        <WaterCanvas
+          fillFraction={usedFraction}
+          tone={isLow ? "low" : "healthy"}
+          width={TANK_WIDTH}
+          height={TANK_HEIGHT}
+        />
+      </div>
+      {device.name} · {device.available_space_gb.toFixed(1)} GB free
       {isLow ? " · low space" : ""}
     </div>
   );
