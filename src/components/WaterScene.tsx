@@ -1,5 +1,5 @@
-import { useMemo } from "react";
-import { useFrame } from "@react-three/fiber";
+import { useEffect, useMemo } from "react";
+import { useFrame, useThree } from "@react-three/fiber";
 import { PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 
@@ -41,6 +41,7 @@ function displaceWater(geometry: THREE.PlaneGeometry, t: number, amplitude: numb
 export function WaterScene({ fillFraction, tone, variant }: WaterSceneProps) {
   const colors = TONE_COLORS[tone];
   const isIntro = variant === "intro";
+  const { gl } = useThree();
 
   const planeWidth = isIntro ? 16 : 1.6;
   const planeDepth = isIntro ? 10 : 1.1;
@@ -52,11 +53,26 @@ export function WaterScene({ fillFraction, tone, variant }: WaterSceneProps) {
     [planeWidth, planeDepth]
   );
 
+  // Reveals left-to-right for the intro instead of translating the mesh,
+  // so the wave geometry itself never moves/distorts during the wipe.
+  const clipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(-1, 0, 0), 0), []);
+
+  useEffect(() => {
+    gl.localClippingEnabled = true;
+  }, [gl]);
+
   useFrame((state) => {
     displaceWater(waterGeometry, state.clock.elapsedTime, waveAmplitude);
+
+    if (isIntro) {
+      const halfWidth = planeWidth / 2;
+      clipPlane.constant = -halfWidth + planeWidth * Math.max(fillFraction, 0.02);
+    }
   });
 
-  const waterLevelY = -tankHeight / 2 + tankHeight * Math.max(fillFraction, 0.02);
+  const waterLevelY = isIntro
+    ? -0.5
+    : -tankHeight / 2 + tankHeight * Math.max(fillFraction, 0.02);
 
   return (
     <>
@@ -84,6 +100,7 @@ export function WaterScene({ fillFraction, tone, variant }: WaterSceneProps) {
           ior={1.33}
           clearcoat={1}
           clearcoatRoughness={0.1}
+          clippingPlanes={isIntro ? [clipPlane] : []}
         />
       </mesh>
 
