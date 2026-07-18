@@ -1,4 +1,6 @@
-import { WaterCanvas } from "@/components/WaterCanvas";
+import { useEffect, useState } from "react";
+import { Canvas } from "@react-three/fiber";
+import { WaterScene } from "@/components/WaterScene";
 import type { UsbDevice } from "@/types";
 
 interface CapacityGaugeProps {
@@ -7,17 +9,20 @@ interface CapacityGaugeProps {
 }
 
 const LOW_SPACE_THRESHOLD = 0.9;
-const TANK_WIDTH = 40;
-const TANK_HEIGHT = 24;
 
 export function CapacityGauge({ device, justSynced }: CapacityGaugeProps) {
+  const [frameloop, setFrameloop] = useState<"always" | "never">("always");
+
+  useEffect(() => {
+    const handleVisibility = () => setFrameloop(document.hidden ? "never" : "always");
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
+  }, []);
+
   if (!device) {
     return (
-      <div className="inline-flex items-center gap-2 rounded-full bg-muted px-3 py-1 text-xs text-muted-foreground">
-        <div
-          className="rounded-sm bg-muted-foreground/10"
-          style={{ width: TANK_WIDTH, height: TANK_HEIGHT }}
-        />
+      <div className="flex items-center gap-3 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+        <div className="h-14 w-20 shrink-0 rounded-lg bg-muted-foreground/10" />
         No earpiece connected — files will save locally.
       </div>
     );
@@ -28,20 +33,19 @@ export function CapacityGauge({ device, justSynced }: CapacityGaugeProps) {
 
   return (
     <div
-      className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium transition-transform duration-300 ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-transform duration-300 ${
         isLow ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"
       } ${justSynced ? "scale-105" : "scale-100"}`}
     >
-      <div className="overflow-hidden rounded-sm" style={{ width: TANK_WIDTH, height: TANK_HEIGHT }}>
-        <WaterCanvas
-          fillFraction={usedFraction}
-          tone={isLow ? "low" : "healthy"}
-          width={TANK_WIDTH}
-          height={TANK_HEIGHT}
-        />
+      <div className="h-14 w-20 shrink-0 overflow-hidden rounded-lg">
+        <Canvas frameloop={frameloop} dpr={[1, 1.5]}>
+          <WaterScene fillFraction={usedFraction} tone={isLow ? "low" : "healthy"} variant="panel" />
+        </Canvas>
       </div>
-      {device.name} · {device.available_space_gb.toFixed(1)} GB free
-      {isLow ? " · low space" : ""}
+      <span>
+        {device.name} · {device.available_space_gb.toFixed(1)} GB free
+        {isLow ? " · low space" : ""}
+      </span>
     </div>
   );
 }
