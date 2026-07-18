@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { WaterCanvas } from "@/components/WaterCanvas";
+import { Canvas } from "@react-three/fiber";
+import { WaterScene } from "@/components/WaterScene";
 
 interface WaterIntroProps {
   targetFraction: number;
@@ -20,13 +21,13 @@ function easeOutCubic(t: number) {
 export function WaterIntro({ targetFraction, ready, onComplete }: WaterIntroProps) {
   const [fillFraction, setFillFraction] = useState(0);
   const [phase, setPhase] = useState<"waiting" | "rising" | "holding" | "fading">("waiting");
+  const [frameloop, setFrameloop] = useState<"always" | "never">("always");
   const rafRef = useRef<number | null>(null);
-  const [viewport, setViewport] = useState({ w: window.innerWidth, h: window.innerHeight });
 
   useEffect(() => {
-    const handleResize = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
+    const handleVisibility = () => setFrameloop(document.hidden ? "never" : "always");
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => document.removeEventListener("visibilitychange", handleVisibility);
   }, []);
 
   useEffect(() => {
@@ -73,13 +74,13 @@ export function WaterIntro({ targetFraction, ready, onComplete }: WaterIntroProp
         phase === "fading" ? "opacity-0 -translate-y-4" : "opacity-100 translate-y-0"
       }`}
     >
-      <WaterCanvas
-        fillFraction={fillFraction}
-        tone={targetFraction >= LOW_SPACE_THRESHOLD ? "low" : "healthy"}
-        width={viewport.w}
-        height={viewport.h}
-        className="absolute inset-0"
-      />
+      <Canvas frameloop={frameloop} dpr={[1, 1.5]}>
+        <WaterScene
+          fillFraction={fillFraction}
+          tone={targetFraction >= LOW_SPACE_THRESHOLD ? "low" : "healthy"}
+          variant="intro"
+        />
+      </Canvas>
     </div>
   );
 }
