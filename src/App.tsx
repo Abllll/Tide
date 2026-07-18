@@ -405,7 +405,7 @@ function App() {
   return (
     <>
       <div className="fixed bottom-1 right-1 z-[100] rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
-        Tide preview build: water-indicator-r2
+        Tide preview build: 3d-water-r1
       </div>
       {showIntro && (
         <WaterIntro
