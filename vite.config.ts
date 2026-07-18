@@ -33,6 +33,10 @@ export default defineConfig(async () => ({
     watch: {
       // 3. tell Vite to ignore watching `src-tauri`
       ignored: ["**/src-tauri/**"],
+      // 4. this project lives on a Windows-mounted (/mnt/c/...) path under WSL,
+      // where native fs-change events are unreliable — poll instead
+      usePolling: true,
+      interval: 300,
     },
   },
 }));
