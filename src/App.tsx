@@ -1,13 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import {
-  Trash2,
-  Folder,
-  Download,
-  CheckCircle,
-  Clock,
-  RefreshCw,
-  HardDrive,
-} from "lucide-react";
+import { Droplet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,22 +12,11 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-
-type AudioState = "queued" | "downloading" | "local" | "syncing" | "synced";
-
-interface AudioFile {
-  id: string;
-  filename: string;
-  state: AudioState;
-  download_log?: string;
-}
-
-interface UsbDevice {
-  id: string;
-  name: string;
-  space_available: string;
-  mount_point: string;
-}
+import { RippleMark, WaveDivider } from "@/components/BrandMarks";
+import { CapacityGauge } from "@/components/CapacityGauge";
+import { SettingsPopover } from "@/components/SettingsPopover";
+import { LibraryList } from "@/components/LibraryList";
+import type { AudioFile, UsbDevice } from "@/types";
 
 function App() {
   const [url, setUrl] = useState("");
@@ -48,6 +29,7 @@ function App() {
   const [usbDevices, setUsbDevices] = useState<UsbDevice[]>([]);
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [syncStatus, setSyncStatus] = useState<string>("");
+  const [justSynced, setJustSynced] = useState(false);
   const audioFilesRef = useRef<AudioFile[]>([]);
 
   // Keep ref in sync with state for event listeners
@@ -97,6 +79,8 @@ function App() {
           : file
       ));
       setSyncStatus(`Synced "${event.payload.filename}" to USB device ✓`);
+      setJustSynced(true);
+      setTimeout(() => setJustSynced(false), 700);
       setTimeout(() => setSyncStatus(""), 3000);
     });
 
@@ -287,8 +271,6 @@ function App() {
     }
   };
 
-  // ... (keep validateUrl, StateBadge, handleFileClick, handleDelete, handleAddUrl same as before)
-
   // URL validation
   useEffect(() => {
     const validateUrl = async () => {
@@ -311,44 +293,6 @@ function App() {
 
     validateUrl();
   }, [url]);
-
-  // State badge component
-  const StateBadge = ({ state, tooltip }: { state: AudioState; tooltip: string }) => {
-    const stateConfig = {
-      queued: {
-        icon: Clock,
-        className: "bg-gray-200 text-gray-600",
-      },
-      downloading: {
-        icon: Download,
-        className: "bg-blue-100 text-blue-600",
-      },
-      local: {
-        icon: HardDrive,
-        className: "bg-yellow-100 text-yellow-700",
-      },
-      syncing: {
-        icon: RefreshCw,
-        className: "bg-blue-50 text-blue-700",
-      },
-      synced: {
-        icon: CheckCircle,
-        className: "bg-green-100 text-green-700",
-      },
-    };
-
-    const config = stateConfig[state];
-    const Icon = config.icon;
-
-    return (
-      <div
-        className={`w-8 h-8 rounded-md flex items-center justify-center ${config.className}`}
-        title={tooltip}
-      >
-        <Icon className="w-[18px] h-[18px]" />
-      </div>
-    );
-  };
 
   // File selection handler
   const handleFileClick = (fileId: string, shiftKey: boolean) => {
@@ -447,151 +391,94 @@ function App() {
     }
   };
 
+  const currentDevice = usbDevices.find(d => d.id === selectedDevice) ?? null;
+
   return (
-    <div className="min-h-screen bg-white text-sm">
-      <div className="p-4 space-y-4 max-w-2xl mx-auto">
-        {/* URL Input Section */}
-        <div>
-            <div className="text-xs font-semibold text-gray-600 mb-2">Add URL</div>
-            <div className="flex gap-2 mb-1.5">
-              <Input
-                placeholder="https://youtube.com/watch?v=..."
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
-                className="flex-1 text-sm"
-              />
-              <Select value={speed} onValueChange={setSpeed}>
-                <SelectTrigger className="w-24 text-sm">
-                  <SelectValue />
+    <div className="min-h-screen bg-background text-sm text-foreground">
+      <div className="sticky top-0 z-20 bg-tide-header">
+        <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 font-semibold text-foreground">
+              <RippleMark className="h-5 w-5 text-primary" />
+              Tide
+            </div>
+            <SettingsPopover storagePath={storagePath} onChangeStorage={handleChangeStorage} />
+          </div>
+
+          <div className="flex gap-2">
+            <Input
+              placeholder="https://youtube.com/watch?v=..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
+              className="flex-1 text-sm"
+            />
+            <Select value={speed} onValueChange={setSpeed}>
+              <SelectTrigger className="w-24 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1.0">1.0x</SelectItem>
+                <SelectItem value="1.25">1.25x</SelectItem>
+                <SelectItem value="1.5">1.5x</SelectItem>
+                <SelectItem value="2.0">2.0x</SelectItem>
+                <SelectItem value="3.0">3.0x</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button size="sm" onClick={handleAddUrl}>
+              <Droplet className="w-4 h-4 mr-1.5" />
+              Pull in
+            </Button>
+          </div>
+          {validationMsg && (
+            <div
+              className={`text-xs ${
+                validationMsg.type === "success" ? "text-primary" : "text-destructive"
+              }`}
+            >
+              {validationMsg.message}
+            </div>
+          )}
+
+          <div className="flex items-center justify-between gap-2">
+            <CapacityGauge device={currentDevice} justSynced={justSynced} />
+            {usbDevices.length > 0 && (
+              <Select
+                value={selectedDevice}
+                onValueChange={setSelectedDevice}
+                onOpenChange={(open) => {
+                  if (open) loadUsbDevices();
+                }}
+              >
+                <SelectTrigger className="w-44 h-7 text-xs">
+                  <SelectValue placeholder="Select earpiece" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1.0">1.0x</SelectItem>
-                  <SelectItem value="1.25">1.25x</SelectItem>
-                  <SelectItem value="1.5">1.5x</SelectItem>
-                  <SelectItem value="2.0">2.0x</SelectItem>
-                  <SelectItem value="3.0">3.0x</SelectItem>
+                  {usbDevices.map((device) => (
+                    <SelectItem key={device.id} value={device.id}>
+                      {device.name} ({device.space_available})
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
-              <Button size="sm" onClick={handleAddUrl}>Add</Button>
-            </div>
-            {validationMsg && (
-              <div
-                className={`text-xs ${
-                  validationMsg.type === "success" ? "text-green-600" : "text-red-600"
-                }`}
-              >
-                {validationMsg.message}
-              </div>
             )}
           </div>
-
-          <div className="border-t border-gray-200" />
-
-          {/* Audio Library Section */}
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-xs font-semibold text-gray-600">Audio Library</div>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={selectedFiles.size === 0}
-                onClick={handleDelete}
-              >
-                <Trash2 className="w-4 h-4 mr-1.5" />
-                Delete
-              </Button>
+          {syncStatus && (
+            <div className={`text-xs ${syncStatus.includes("failed") ? "text-destructive" : "text-muted-foreground"}`}>
+              {syncStatus}
             </div>
-            <div className="border border-gray-300 rounded max-h-[280px] overflow-y-auto">
-              {audioFiles.length === 0 ? (
-                <div className="px-3 py-8 text-center text-sm text-gray-500">
-                  No audio files yet. Add a URL to start downloading.
-                </div>
-              ) : (
-                audioFiles.map((file) => (
-                  <div
-                    key={file.id}
-                    className={`border-b last:border-b-0 border-gray-100 cursor-pointer transition-colors ${
-                      selectedFiles.has(file.id) ? "bg-blue-50" : "hover:bg-gray-50"
-                    }`}
-                    onClick={(e) => handleFileClick(file.id, e.shiftKey)}
-                  >
-                    <div className="px-3 py-2.5 flex items-center gap-2.5">
-                      <StateBadge
-                        state={file.state}
-                        tooltip={
-                          file.state === "synced"
-                            ? "File is on local machine and USB device"
-                            : file.state === "downloading"
-                            ? "Downloading from source, will sync to USB when complete"
-                            : file.state === "local"
-                            ? "File is on local machine only, waiting to sync to USB"
-                            : file.state === "syncing"
-                            ? "Copying file to USB device"
-                            : "Waiting in queue to download"
-                        }
-                      />
-                      <span className="text-sm text-gray-800 flex-1">{file.filename}</span>
-                    </div>
-                    {file.download_log && (
-                      <div className="px-3 pb-2.5 pl-[48px]">
-                        <div className="text-[11px] font-mono text-gray-600 bg-gray-50 px-3 py-1 rounded overflow-hidden text-ellipsis whitespace-nowrap">
-                          {file.download_log}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
+          )}
+        </div>
+        <WaveDivider />
+      </div>
 
-          <div className="border-t border-gray-200" />
-
-          {/* Storage Settings Section */}
-          <div>
-            <div className="text-xs font-semibold text-gray-600 mb-2">Storage Settings</div>
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600 min-w-[80px]">Local:</span>
-                <span className="text-sm text-gray-800 flex-1">{storagePath || "Loading..."}</span>
-                <Button variant="secondary" size="sm" onClick={handleChangeStorage}>
-                  <Folder className="w-4 h-4 mr-1.5" />
-                  Change
-                </Button>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-medium text-gray-600 min-w-[80px]">USB Device:</span>
-                <Select
-                  value={selectedDevice}
-                  onValueChange={setSelectedDevice}
-                  onOpenChange={(open) => {
-                    if (open) loadUsbDevices();
-                  }}
-                >
-                  <SelectTrigger className="flex-1 text-sm">
-                    <SelectValue placeholder="Select device to sync" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {usbDevices.length === 0 ? (
-                      <SelectItem value="none" disabled>No USB devices found</SelectItem>
-                    ) : (
-                      usbDevices.map((device) => (
-                        <SelectItem key={device.id} value={device.id}>
-                          {device.name} ({device.space_available})
-                        </SelectItem>
-                      ))
-                    )}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="bg-gray-100 rounded px-3 py-2 mt-2">
-                <p className={`text-xs ${syncStatus.includes("failed") ? "text-red-600" : "text-blue-600"}`}>
-                  {syncStatus || "Status: Ready to download"}
-                </p>
-              </div>
-            </div>
-          </div>
+      <div className="max-w-2xl mx-auto p-4">
+        <LibraryList
+          files={audioFiles}
+          selectedFiles={selectedFiles}
+          onFileClick={handleFileClick}
+          onDelete={handleDelete}
+        />
       </div>
     </div>
   );
