@@ -14,6 +14,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { RippleMark, WaveDivider } from "@/components/BrandMarks";
 import { CapacityGauge } from "@/components/CapacityGauge";
+import { RippleSurface } from "@/components/RippleSurface";
 import { WaterIntro } from "@/components/WaterIntro";
 import { SettingsPopover } from "@/components/SettingsPopover";
 import { LibraryList } from "@/components/LibraryList";
@@ -415,7 +416,7 @@ function App() {
         />
       )}
       <div className="min-h-screen bg-background text-sm text-foreground">
-      <div className="sticky top-0 z-20 bg-tide-header">
+      <RippleSurface className="sticky top-0 z-20">
         <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-semibold text-foreground">
@@ -490,7 +491,7 @@ function App() {
           )}
         </div>
         <WaveDivider />
-      </div>
+      </RippleSurface>
 
       <div className="max-w-2xl mx-auto p-4">
         <LibraryList

@@ -24,8 +24,6 @@
     --input: 36 25% 88%;
     --ring: 187 55% 40%;
     --radius: 0.75rem;
-    --tide-gradient-from: 190 70% 92%;
-    --tide-gradient-to: 189 60% 80%;
   }
 }
 
@@ -38,12 +36,3 @@
   }
 }
 
-@layer utilities {
-  .bg-tide-header {
-    background: linear-gradient(
-      135deg,
-      hsl(var(--tide-gradient-from)),
-      hsl(var(--tide-gradient-to))
-    );
-  }
-}
