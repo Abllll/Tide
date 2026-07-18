@@ -10,7 +10,7 @@ interface WaterIntroProps {
 const FLOOR_FRACTION = 0.04;
 const RISE_MS = 1200;
 const HOLD_MS = 400;
-const FADE_MS = 600;
+const FADE_MS = 500;
 const LOW_SPACE_THRESHOLD = 0.9;
 
 function easeOutCubic(t: number) {
@@ -69,7 +69,7 @@ export function WaterIntro({ targetFraction, ready, onComplete }: WaterIntroProp
 
   return (
     <div
-      className={`fixed inset-0 z-50 transition-all duration-[600ms] ${
+      className={`fixed inset-0 z-50 transition-all duration-500 ${
         phase === "fading" ? "opacity-0 -translate-y-4" : "opacity-100 translate-y-0"
       }`}
     >
