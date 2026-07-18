@@ -49,8 +49,9 @@ pub struct ValidationResult {
 pub struct UsbDevice {
     pub id: String,
     pub name: String,
-    pub space_available: String,
     pub mount_point: String,
+    pub available_space_gb: f64,
+    pub total_space_gb: f64,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -204,12 +205,14 @@ fn list_usb_devices() -> Vec<UsbDevice> {
              if mount_point.contains("Recovery") { continue; }
 
             let available_gb = disk.available_space() as f64 / 1024.0 / 1024.0 / 1024.0;
+            let total_gb = disk.total_space() as f64 / 1024.0 / 1024.0 / 1024.0;
 
             devices.push(UsbDevice {
                 id: disk.name().to_string_lossy().to_string(),
                 name: disk.name().to_string_lossy().to_string(),
-                space_available: format!("{:.1} GB available", available_gb),
                 mount_point: mount_point.to_string(),
+                available_space_gb: available_gb,
+                total_space_gb: total_gb,
             });
         }
     }
