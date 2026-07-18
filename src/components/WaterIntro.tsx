@@ -31,7 +31,7 @@ export function WaterIntro({ targetFraction, ready, onComplete }: WaterIntroProp
   }, []);
 
   useEffect(() => {
-    if (!ready || phase !== "waiting") return;
+    if (!ready) return;
 
     setPhase("rising");
     const target = Math.max(targetFraction, FLOOR_FRACTION);
@@ -54,7 +54,13 @@ export function WaterIntro({ targetFraction, ready, onComplete }: WaterIntroProp
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, [ready, phase, targetFraction]);
+    // targetFraction is intentionally captured once here as a snapshot of
+    // the fill level at the moment the rise starts, not tracked reactively —
+    // and `phase` must stay out of the deps, since setPhase("rising") above
+    // would otherwise retrigger this same effect and cancel its own
+    // just-scheduled animation frame before it ever fires.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
 
   useEffect(() => {
     if (phase !== "holding") return;
