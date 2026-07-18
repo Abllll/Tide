@@ -14,6 +14,7 @@ import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
 import { RippleMark, WaveDivider } from "@/components/BrandMarks";
 import { CapacityGauge } from "@/components/CapacityGauge";
+import { WaterIntro } from "@/components/WaterIntro";
 import { SettingsPopover } from "@/components/SettingsPopover";
 import { LibraryList } from "@/components/LibraryList";
 import type { AudioFile, UsbDevice } from "@/types";
@@ -30,6 +31,8 @@ function App() {
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [syncStatus, setSyncStatus] = useState<string>("");
   const [justSynced, setJustSynced] = useState(false);
+  const [showIntro, setShowIntro] = useState(true);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
   const audioFilesRef = useRef<AudioFile[]>([]);
 
   // Keep ref in sync with state for event listeners
@@ -39,9 +42,9 @@ function App() {
 
   // Load initial data and setup listeners
   useEffect(() => {
-    loadStoragePath();
-    loadAudioLibrary();
-    loadUsbDevices();
+    Promise.allSettled([loadStoragePath(), loadAudioLibrary(), loadUsbDevices()]).then(() => {
+      setInitialLoadComplete(true);
+    });
 
     // Listeners
     const unlistenProgress = listen<any>("download-progress", (event) => {
@@ -242,10 +245,13 @@ function App() {
       const devices = await invoke<UsbDevice[]>("list_usb_devices");
       setUsbDevices(devices);
 
-      // Clear selection if currently selected device is no longer available
-      if (selectedDevice && !devices.find(d => d.id === selectedDevice)) {
-        setSelectedDevice("");
-      }
+      // Auto-select the first device if none is currently selected/valid,
+      // so the water indicator reflects a connected device without
+      // requiring the user to manually pick one every launch.
+      setSelectedDevice(prev => {
+        if (prev && devices.find(d => d.id === prev)) return prev;
+        return devices.length > 0 ? devices[0].id : "";
+      });
     } catch (error) {
       console.error("Failed to list USB devices:", error);
     }
@@ -392,9 +398,20 @@ function App() {
   };
 
   const currentDevice = usbDevices.find(d => d.id === selectedDevice) ?? null;
+  const introFraction = currentDevice
+    ? 1 - currentDevice.available_space_gb / currentDevice.total_space_gb
+    : 0;
 
   return (
-    <div className="min-h-screen bg-background text-sm text-foreground">
+    <>
+      {showIntro && (
+        <WaterIntro
+          targetFraction={introFraction}
+          ready={initialLoadComplete}
+          onComplete={() => setShowIntro(false)}
+        />
+      )}
+      <div className="min-h-screen bg-background text-sm text-foreground">
       <div className="sticky top-0 z-20 bg-tide-header">
         <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
           <div className="flex items-center justify-between">
@@ -456,7 +473,7 @@ function App() {
                 <SelectContent>
                   {usbDevices.map((device) => (
                     <SelectItem key={device.id} value={device.id}>
-                      {device.name} ({device.space_available})
+                      {device.name} ({device.available_space_gb.toFixed(1)} GB free)
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -480,7 +497,8 @@ function App() {
           onDelete={handleDelete}
         />
       </div>
-    </div>
+      </div>
+    </>
   );
 }
 
