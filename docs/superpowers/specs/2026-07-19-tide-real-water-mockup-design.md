@@ -34,13 +34,24 @@ Design principles behind this, from reference material and discussion:
 - **Parallax as depth, not just decoration.** The water reads as a background layer with
   depth relative to foreground UI content, not a flat overlay.
 
-## Confirmed Asset
+## Confirmed Assets
 
-`public/water/pool-surface.mp4` (already copied into the project) — a real top-down pool
-water clip: 1920×1080, h264, ~20.4s, 30fps, ~24MB. Bright, clean, sunlit caustic ripple
-patterns, no people, no branding. Confirmed by the user as matching the desired "clean,
-never murky" look. This is a **top-down** shot — it does not contain a surface→underwater
-transition.
+- `public/water/pool-surface.mp4` — a real top-down pool water clip: 1920×1080, h264,
+  ~20.4s, 30fps, ~24MB. Bright, clean, sunlit caustic ripple patterns, no people, no
+  branding. Used as the ambient full-page background layer (see Technical Approach).
+- `public/water/hero-waterline.mp4` (from `11066-228113758.mp4` in the user's reference
+  folder) — a real infinity-pool waterline shot: blurred warm greenery above the waterline,
+  clear rippling blue water below, golden/warm light quality. Used for the hero section
+  specifically (see Layout below) — only the lower "clear water" portion is used; the
+  blurred upper portion is cropped away and replaced with solid white, matching the
+  reference layout.
+- Two real Shokz product photos (`shokz reference.jpg`, `shokz reference 02.jpg`) — the
+  actual bone-conduction earpiece mid-splash, with the "SHOKZ" wordmark visible. **Explicit
+  informed decision:** the user has confirmed using these as-is (visible branding included)
+  is acceptable for this personal, non-commercial portfolio mockup, understanding they are
+  real third-party product photography. Copied to `public/product/`.
+- A surface→underwater transition clip is still wanted but not provided/blocking (see
+  "Resource Still Wanted" below — unchanged from before).
 
 ## Resource Still Wanted (not blocking)
 
@@ -88,6 +99,71 @@ a live video source. Instead, since `three`/`@react-three/fiber` are already dep
   ambient background role — one continuous element changing role, not two separate
   systems handing off to each other.
 
+## Layout Restructure (app's main screen becomes a landing-page hero)
+
+This is a structural change to `App.tsx`'s own main screen (confirmed by the user — not a
+separate marketing page). It moves from the current compact 800×600 utility layout to a
+scrollable, hero-section landing-page layout, directly modeled on the reference image's
+composition (white upper section, water lower section, waterline as the dividing motif),
+adapted to Tide's own content:
+
+1. **Hero section (first screen):**
+   - Upper portion: solid white background containing the settings gear (top corner,
+     unchanged position/behavior), the "Tide" wordmark in a large, organic/rounded,
+     dark-blue display font (see Typography below), the tagline ("Pull it in, take it
+     under."), the quick-add input + speed selector + "Pull in" button (restyled per the
+     Button/Input System below), and the Shokz product photo placed within this white
+     area.
+   - Lower portion (roughly the bottom half of the hero section, matching the reference's
+     proportions): `hero-waterline.mp4`, cropped to show only its clear-water portion —
+     the blurred-greenery top of that clip is cropped away, not shown; solid white fills
+     above the waterline instead, so the transition from "white section" to "water
+     section" reads as one clean horizon line, matching the reference composition.
+   - **The waterline's vertical position is the storage-fullness indicator** (see Storage
+     Level Motion below) — this is the same "water is functional, not decorative"
+     principle carried into the new layout: the hero water band is not just mood/decor, it
+     doubles as the real capacity readout.
+2. **Library section (scrolls into view below the hero):** the existing `LibraryList`
+   content, unchanged in function, restyled to match the new visual system (soft
+   rounded/organic cards rather than sharp rectangles).
+
+## Typography
+
+The "Tide" wordmark in the hero uses a rounded/organic display font (soft, flowing
+letterforms — not the current system sans used for body text elsewhere), set in a dark
+blue (distinct from the existing `--primary` teal — a deeper navy/blue reads better as
+large display text on white than the teal accent does), generously sized as a true hero
+headline rather than a small inline label.
+
+## Button / Input "Water Bubble" System
+
+Every interactive control (the "Pull in" button, the quick-add input box, the sync
+button, delete/secondary buttons, etc.) is restyled to match the second reference image: a
+soft, blurred, glossy blob — pastel blue blended with a warm/orange glow, rounded-organic
+(not a sharp rectangle or perfect circle), reading as if it's made of the same soft
+translucent light as the water itself. This explicitly replaces flat/sharp button
+treatments — **not** glassmorphism (a sharp frosted-glass panel look), and not a flat
+gradient circle; the reference is soft-focus, glowing, blob-shaped, with warm light
+blended into the cool blue. Applied consistently across every control so the whole page
+reads as one visual system (the same "semantic unity" principle as the water background).
+
+## Sync Interaction (new — supersedes the earlier "not in scope" decision)
+
+An explicit Sync button is added (previously sync was fully automatic with no user-facing
+button/prompt — this is a deliberate, now-approved addition to that behavior, requested
+directly by the user). Pressing it triggers a **"water rises from bottom to full"**
+motion — the same water-level-as-fill-indicator concept from the hero section, but played
+as a short, deliberate rise-to-full animation as the sync action's primary feedback,
+rather than (or alongside) the passive automatic sync status text that exists today.
+
+## Storage Level Motion
+
+The waterline (in the hero section, and reused for the sync animation above) rises and
+falls to reflect `used_fraction`, exactly as the earlier 3D-tank and Canvas2D versions
+did — same semantics, same "0.9 = low space" threshold — just expressed now as the real
+water-video layer's visible level within the hero band, rather than a separate small
+gauge widget.
+
 ## Storage-State Indication (moved off water color)
 
 Since the water must never look murky, "low space" is no longer communicated by changing
@@ -106,6 +182,13 @@ so the recorded videos can show the indicator in a non-empty state. This is expl
 scoped as mockup-only scaffolding, not a real feature — it should be obviously
 separable/removable later, not integrated into the real Tauri backend/device-detection
 path.
+
+## Window Sizing
+
+The current fixed 800×600 window (`src-tauri/tauri.conf.json`) was sized for a compact
+utility layout, not a hero-section landing page. Bumped taller (e.g. 900×760) and made
+resizable, so the hero composition has room to breathe and the library section below it
+has a reason to scroll. This is a one-line config change, not a functional/backend change.
 
 ## Out of Scope
 
