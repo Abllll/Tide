@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Droplet } from "lucide-react";
+import { Droplet, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,13 +12,18 @@ import {
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
-import { RippleMark, WaveDivider } from "@/components/BrandMarks";
+import { RippleMark } from "@/components/BrandMarks";
 import { CapacityGauge } from "@/components/CapacityGauge";
-import { RippleSurface } from "@/components/RippleSurface";
-import { WaterIntro } from "@/components/WaterIntro";
+import { SyncWorkspace } from "@/components/SyncWorkspace";
 import { SettingsPopover } from "@/components/SettingsPopover";
 import { LibraryList } from "@/components/LibraryList";
 import type { AudioFile, UsbDevice } from "@/types";
+
+const DEMO_AUDIO_FILES: AudioFile[] = [
+  { id: "demo-lap-01", filename: "Open-water breathing technique.mp3", state: "local" },
+  { id: "demo-lap-02", filename: "The Daily — Summer playlist.mp3", state: "local" },
+  { id: "demo-lap-03", filename: "How to find your flow.mp3", state: "local" },
+];
 
 function App() {
   const [url, setUrl] = useState("");
@@ -32,9 +37,16 @@ function App() {
   const [selectedDevice, setSelectedDevice] = useState<string>("");
   const [syncStatus, setSyncStatus] = useState<string>("");
   const [justSynced, setJustSynced] = useState(false);
-  const [showIntro, setShowIntro] = useState(true);
-  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [mockConnected, setMockConnected] = useState(false);
+  const [mockFill, setMockFill] = useState(42);
+  const [syncRise, setSyncRise] = useState(false);
+  const [isLibraryTransitioning, setIsLibraryTransitioning] = useState(false);
+  const [isLibraryView, setIsLibraryView] = useState(false);
+  const [isDemoMode, setIsDemoMode] = useState(false);
+  const [transitionDirection, setTransitionDirection] = useState<"into" | "out">("into");
   const audioFilesRef = useRef<AudioFile[]>([]);
+  const libraryRef = useRef<HTMLElement>(null);
+  const connectedDeviceRef = useRef<string | null>(null);
 
   // Keep ref in sync with state for event listeners
   useEffect(() => {
@@ -43,9 +55,7 @@ function App() {
 
   // Load initial data and setup listeners
   useEffect(() => {
-    Promise.allSettled([loadStoragePath(), loadAudioLibrary(), loadUsbDevices()]).then(() => {
-      setInitialLoadComplete(true);
-    });
+    Promise.allSettled([loadStoragePath(), loadAudioLibrary(), loadUsbDevices()]);
 
     // Listeners
     const unlistenProgress = listen<any>("download-progress", (event) => {
@@ -95,78 +105,6 @@ function App() {
     };
   }, []);
 
-  // Auto-sync logic and Status updates
-  useEffect(() => {
-    if (!selectedDevice) {
-      if (audioFiles.some(f => f.state === "downloading")) {
-        // Keep downloading status or clear if needed, but don't show sync status
-      } else {
-        setSyncStatus("");
-      }
-      return;
-    }
-
-    if (audioFiles.length === 0) {
-      setSyncStatus("");
-      return;
-    }
-
-    const device = usbDevices.find(d => d.id === selectedDevice);
-    if (!device) return;
-
-    // 1. Handle Active Syncing State (UI feedback)
-    const syncingCount = audioFiles.filter(f => f.state === "syncing").length;
-    if (syncingCount > 0) {
-      setSyncStatus(`Syncing ${syncingCount} file(s) to ${device.name}...`);
-      // We don't return here because we might need to trigger more syncs if new 'local' files appeared
-    }
-
-    // 2. Trigger Sync for 'local' files
-    const localFiles = audioFiles.filter(f => f.state === "local");
-    if (localFiles.length > 0) {
-      localFiles.forEach(async (file) => {
-        // Immediately mark as syncing to prevent double-triggering
-        setAudioFiles(prev => prev.map(f =>
-          f.id === file.id ? { ...f, state: "syncing" } : f
-        ));
-
-        try {
-          await invoke("sync_to_usb", {
-            fileId: file.id,
-            filename: file.filename,
-            usbMountPoint: device.mount_point
-          });
-
-          // Mark as synced on success
-          setAudioFiles(prev => prev.map(f =>
-            f.id === file.id ? { ...f, state: "synced" } : f
-          ));
-        } catch (error) {
-          console.error("Sync failed:", error);
-          setAudioFiles(prev => prev.map(f =>
-            f.id === file.id ? { ...f, state: "local" } : f
-          ));
-          setSyncStatus(`Sync failed for "${file.filename}"`);
-        }
-      });
-      return; // State updated, effect will re-run
-    }
-
-    // 3. Final Status (All Synced)
-    // Only show "All synced" if we are NOT currently syncing anything and everything is synced
-    if (syncingCount === 0) {
-      const allSynced = audioFiles.every(f => f.state === "synced");
-      if (allSynced) {
-        setSyncStatus(`All files synced to ${device.name} ✓`);
-      } else if (audioFiles.some(f => f.state === "downloading")) {
-        // Downloading... status is handled by per-item or ignored here
-        setSyncStatus("");
-      } else {
-        // Mixed state (e.g. queued) or empty
-        setSyncStatus("");
-      }
-    }
-  }, [audioFiles, selectedDevice, usbDevices]);
 
   const loadStoragePath = async () => {
     try {
@@ -257,6 +195,11 @@ function App() {
       console.error("Failed to list USB devices:", error);
     }
   };
+
+  useEffect(() => {
+    const pollDevices = window.setInterval(() => { void loadUsbDevices(); }, 3000);
+    return () => window.clearInterval(pollDevices);
+  }, []);
 
   const handleChangeStorage = async () => {
     try {
@@ -398,112 +341,127 @@ function App() {
     }
   };
 
-  const currentDevice = usbDevices.find(d => d.id === selectedDevice) ?? null;
-  const introFraction = currentDevice
-    ? 1 - currentDevice.available_space_gb / currentDevice.total_space_gb
-    : 0;
+  const realDevice = usbDevices.find(d => d.id === selectedDevice) ?? null;
+  const mockDevice: UsbDevice = {
+    id: "tide-preview-device", name: "Tide OpenSwim", mount_point: "", total_space_gb: 8,
+    available_space_gb: 8 * (1 - mockFill / 100),
+  };
+  const currentDevice = mockConnected ? mockDevice : realDevice;
+  const usedFraction = currentDevice ? 1 - currentDevice.available_space_gb / currentDevice.total_space_gb : 0.18;
+  const waterHeight = syncRise || isLibraryTransitioning || isLibraryView ? 100 : Math.max(33, Math.min(56, Math.round(33 + usedFraction * 23)));
+  const waterlineFeather = 72;
+  const waterlineTop = 780 * (1 - waterHeight / 100);
+  const syncableFiles = audioFiles.filter(file => file.state !== "downloading");
+  const syncProgress = syncableFiles.length ? syncableFiles.filter(file => file.state === "synced").length / syncableFiles.length : 0;
 
-  return (
-    <>
-      <div className="fixed bottom-1 right-1 z-[100] rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
-        Tide preview build: spec-compliance-fixes-r1
-      </div>
-      {showIntro && (
-        <WaterIntro
-          targetFraction={introFraction}
-          ready={initialLoadComplete}
-          onComplete={() => setShowIntro(false)}
-        />
-      )}
-      <div className="min-h-screen bg-background text-sm text-foreground">
-      <RippleSurface className="sticky top-0 z-20 shadow-md">
-        <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-1.5 font-semibold text-foreground">
-              <RippleMark className="h-5 w-5 text-primary" />
-              Tide
-            </div>
-            <SettingsPopover storagePath={storagePath} onChangeStorage={handleChangeStorage} />
-          </div>
+  const handleSync = async () => {
+    if (!currentDevice) { setSyncStatus("Connect an earpiece before syncing."); return; }
+    setSyncRise(true);
+    setJustSynced(true);
+    window.setTimeout(() => { setSyncRise(false); setJustSynced(false); }, 1100);
+    const localFiles = audioFiles.filter(file => file.state === "local");
+    if (mockConnected) {
+      if (!localFiles.length) { setSyncStatus("Preview device is already in sync ✓"); return; }
+      setAudioFiles(files => files.map(file => file.state === "local" ? { ...file, state: "syncing" } : file));
+      setSyncStatus(`Syncing ${localFiles.length} file(s) to preview device...`);
+      await new Promise(resolve => window.setTimeout(resolve, 1300));
+      setAudioFiles(files => files.map(file => file.state === "syncing" ? { ...file, state: "synced" } : file));
+      setSyncStatus(`Synced ${localFiles.length} file(s) to preview device ✓`);
+      return;
+    }
+    if (!realDevice) return;
+    if (!localFiles.length) { setSyncStatus("Everything is already in sync ✓"); return; }
+    setSyncStatus(`Syncing ${localFiles.length} file(s) to ${realDevice.name}...`);
+    for (const file of localFiles) {
+      setAudioFiles(files => files.map(item => item.id === file.id ? { ...item, state: "syncing" } : item));
+      try {
+        await invoke("sync_to_usb", { fileId: file.id, filename: file.filename, usbMountPoint: realDevice.mount_point });
+        setAudioFiles(files => files.map(item => item.id === file.id ? { ...item, state: "synced" } : item));
+      } catch (error) {
+        console.error("Sync failed:", error);
+        setAudioFiles(files => files.map(item => item.id === file.id ? { ...item, state: "local" } : item));
+        setSyncStatus(`Sync failed for "${file.filename}"`);
+        return;
+      }
+    }
+    setSyncStatus(`All files synced to ${realDevice.name} ✓`);
+  };
 
-          <div className="flex gap-2">
-            <Input
-              placeholder="https://youtube.com/watch?v=..."
-              value={url}
-              onChange={(e) => setUrl(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleAddUrl()}
-              className="flex-1 text-sm"
-            />
-            <Select value={speed} onValueChange={setSpeed}>
-              <SelectTrigger className="w-24 text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="1.0">1.0x</SelectItem>
-                <SelectItem value="1.25">1.25x</SelectItem>
-                <SelectItem value="1.5">1.5x</SelectItem>
-                <SelectItem value="2.0">2.0x</SelectItem>
-                <SelectItem value="3.0">3.0x</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button size="sm" onClick={handleAddUrl}>
-              <Droplet className="w-4 h-4 mr-1.5" />
-              Pull in
-            </Button>
-          </div>
-          {validationMsg && (
-            <div
-              className={`text-xs ${
-                validationMsg.type === "success" ? "text-primary" : "text-destructive"
-              }`}
-            >
-              {validationMsg.message}
-            </div>
-          )}
+  const handleLibraryTransition = () => {
+    if (isLibraryTransitioning) return;
+    setTransitionDirection("into");
+    setIsLibraryTransitioning(true);
+    window.setTimeout(() => { setIsLibraryView(true); window.scrollTo({ top: 0, behavior: "smooth" }); }, 850);
+    window.setTimeout(() => setIsLibraryTransitioning(false), 1050);
+  };
 
-          <div className="flex items-center justify-between gap-2">
-            <CapacityGauge device={currentDevice} justSynced={justSynced} />
-            {usbDevices.length > 0 && (
-              <Select
-                value={selectedDevice}
-                onValueChange={setSelectedDevice}
-                onOpenChange={(open) => {
-                  if (open) loadUsbDevices();
-                }}
-              >
-                <SelectTrigger className="w-44 h-7 text-xs">
-                  <SelectValue placeholder="Select earpiece" />
-                </SelectTrigger>
-                <SelectContent>
-                  {usbDevices.map((device) => (
-                    <SelectItem key={device.id} value={device.id}>
-                      {device.name} ({device.available_space_gb.toFixed(1)} GB free)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            )}
-          </div>
-          {syncStatus && (
-            <div className={`text-xs ${syncStatus.includes("failed") ? "text-destructive" : "text-muted-foreground"}`}>
-              {syncStatus}
-            </div>
-          )}
+  const handleLandingTransition = () => {
+    if (isLibraryTransitioning || !isLibraryView) return;
+    setTransitionDirection("out");
+    setIsLibraryTransitioning(true);
+    window.setTimeout(() => { setIsLibraryView(false); window.scrollTo({ top: 0, behavior: "smooth" }); }, 520);
+    window.setTimeout(() => setIsLibraryTransitioning(false), 1080);
+  };
+
+  const startRecordingDemo = () => {
+    setIsDemoMode(true);
+    setMockFill(42);
+    setMockConnected(true);
+    setSelectedFiles(new Set());
+    setAudioFiles(DEMO_AUDIO_FILES.map(file => ({ ...file })));
+    setSyncStatus("Preview earpiece connected");
+    window.setTimeout(handleLibraryTransition, 260);
+  };
+
+  const endRecordingDemo = () => {
+    setIsDemoMode(false);
+    setMockConnected(false);
+    setAudioFiles([]);
+    setSyncStatus("");
+    setIsLibraryView(false);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    if (!realDevice || connectedDeviceRef.current === realDevice.id) return;
+    connectedDeviceRef.current = realDevice.id;
+    handleLibraryTransition();
+    const timer = window.setTimeout(handleSync, 980);
+    return () => window.clearTimeout(timer);
+    // A new device connection is the only event that should trigger this transition.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [realDevice?.id]);
+
+  useEffect(() => {
+    const handleWheel = (event: WheelEvent) => {
+      if (isLibraryTransitioning) { event.preventDefault(); return; }
+      if (!isLibraryView && event.deltaY > 18 && window.scrollY < 40) {
+        event.preventDefault();
+        handleLibraryTransition();
+      }
+      if (isLibraryView && event.deltaY < -18 && window.scrollY < 18) {
+        event.preventDefault();
+        handleLandingTransition();
+      }
+    };
+    window.addEventListener("wheel", handleWheel, { passive: false });
+    return () => window.removeEventListener("wheel", handleWheel);
+  }, [isLibraryTransitioning, isLibraryView]);
+
+  return <div className="relative min-h-screen overflow-x-hidden text-sm text-[#163e5b]">
+    <main className="relative isolate z-10"><div className="absolute inset-x-0 bottom-0 z-0 overflow-hidden transition-[top] duration-1000 ease-[cubic-bezier(.22,.8,.22,1)]" style={{ top: `${isLibraryView ? 0 : waterlineTop - waterlineFeather}px` }}><img src="/water/tide-waterline.gif" alt="" className={`h-full w-full object-cover object-top ${isLibraryTransitioning ? transitionDirection === "into" ? "tide-library-plunge" : "tide-library-surface" : ""}`} /></div>{isLibraryView && <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[1] bg-gradient-to-t from-[#3dc7df]/35 via-[#127aa7]/12 to-transparent transition-[height] duration-700" style={{ height: `${Math.max(10, syncProgress * 100)}%` }} />}
+      {!isLibraryView && <section className="relative z-10 min-h-[720px] overflow-hidden sm:min-h-[780px]">
+        <div className="absolute inset-x-0 top-0 z-0 transition-[height] duration-1000 ease-out" style={{ height: `${100 - waterHeight}%`, background: "linear-gradient(to bottom, #fcfcfb 0, #fcfcfb calc(100% - 72px), rgba(252,252,251,.62) calc(100% - 28px), transparent 100%)" }} />
+        <div className={`relative z-20 mx-auto max-w-5xl px-7 pt-7 transition-all duration-700 ease-out ${isLibraryTransitioning ? "pointer-events-none -translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
+          <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[.42em] text-[#30536b]"><RippleMark className="h-3.5 w-3.5 text-[#1f5678]" /><div className="hidden items-center gap-10 sm:flex"><button type="button" onClick={handleLibraryTransition} className="transition-opacity hover:opacity-55">Library</button><span>About</span></div><SettingsPopover storagePath={storagePath} onChangeStorage={handleChangeStorage} previewEnabled={mockConnected} onPreviewEnabledChange={setMockConnected} previewFill={mockFill} onPreviewFillChange={setMockFill} demoActive={isDemoMode} onStartDemo={startRecordingDemo} onEndDemo={endRecordingDemo} /></div>
+          <div className="mx-auto max-w-3xl pt-24 text-center sm:pt-32"><h1 className="tide-display pl-[.14em] text-[clamp(5.5rem,16vw,10rem)] leading-[.76] tracking-[.14em] text-[#193e57]">Tide</h1><p className="mt-8 text-[10px] font-semibold uppercase tracking-[.48em] text-[#7290a0]">Pull it in, take it under.</p><p className="mt-4 text-sm text-[#52768b]">Turn the videos you’re into right now into swim-ready audio.</p></div>
+          <div className="relative mx-auto mt-14 max-w-xl"><div className="flex flex-wrap justify-center gap-2"><Input placeholder="Paste a YouTube or Apple Podcasts link" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddUrl()} className="min-w-[230px] flex-1" /><Select value={speed} onValueChange={setSpeed}><SelectTrigger className="h-11 w-24 rounded-[1.35rem] border border-white/50 bg-gradient-to-br from-[#d7f5f3]/80 via-[#80d2e6]/72 to-[#398bb7]/72 text-white shadow-[0_10px_25px_rgba(67,157,192,.2),inset_0_1px_1px_rgba(255,255,255,.8)] backdrop-blur-md"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1.0">1.0x</SelectItem><SelectItem value="1.25">1.25x</SelectItem><SelectItem value="1.5">1.5x</SelectItem><SelectItem value="2.0">2.0x</SelectItem><SelectItem value="3.0">3.0x</SelectItem></SelectContent></Select></div>{validationMsg && <p className={`mt-2 text-center text-xs ${validationMsg.type === "success" ? "text-[#287da9]" : "text-destructive"}`}>{validationMsg.message}</p>}</div>
         </div>
-        <WaveDivider />
-      </RippleSurface>
-
-      <div className="max-w-2xl mx-auto p-4">
-        <LibraryList
-          files={audioFiles}
-          selectedFiles={selectedFiles}
-          onFileClick={handleFileClick}
-          onDelete={handleDelete}
-        />
-      </div>
-      </div>
-    </>
-  );
+        <Button style={{ top: `${waterlineTop + 72}px` }} className={`absolute left-1/2 z-10 -translate-x-1/2 transition-all duration-700 ${isLibraryTransitioning ? "translate-y-8 opacity-0" : "translate-y-0 opacity-100"}`} onClick={handleAddUrl}><Droplet />Pull in</Button>
+      </section>}
+      <section ref={libraryRef} className={`relative z-20 mx-auto max-w-4xl px-4 pb-16 ${isLibraryView ? "min-h-screen pt-16" : "pt-12"}`}><div className="px-2 py-5 sm:px-7"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.28em] text-[#d7f4f7]/75">Your current</p><h2 className="tide-display mt-2 text-4xl text-white">Library</h2><CapacityGauge device={currentDevice} className="mt-3 text-white" /></div></div>{isLibraryView && currentDevice && <><SyncWorkspace files={audioFiles} device={currentDevice} status={syncStatus} /><div className="mb-8 flex justify-center"><Button className={justSynced ? "scale-105" : ""} onClick={handleSync}><RefreshCw className={syncRise ? "animate-spin" : ""} />Sync files</Button></div></>}{usbDevices.length > 0 && !mockConnected && <Select value={selectedDevice} onValueChange={setSelectedDevice} onOpenChange={open => { if (open) loadUsbDevices(); }}><SelectTrigger className="mb-4 w-52 rounded-full bg-white/20 text-xs text-white backdrop-blur-sm"><SelectValue placeholder="Select earpiece" /></SelectTrigger><SelectContent>{usbDevices.map(device => <SelectItem key={device.id} value={device.id}>{device.name} ({device.available_space_gb.toFixed(1)} GB free)</SelectItem>)}</SelectContent></Select>}<LibraryList files={audioFiles} selectedFiles={selectedFiles} onFileClick={handleFileClick} onDelete={handleDelete} />{syncStatus && <p className={`mt-4 text-xs ${syncStatus.includes("failed") ? "text-[#ffd5cf]" : "text-white/80"}`}>{syncStatus}</p>}</div></section>
+    </main>
+  </div>;
 }
 
 export default App;

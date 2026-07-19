@@ -46,7 +46,7 @@ function StateBadge({ state }: { state: AudioState }) {
   const Icon = config.icon;
   return (
     <div
-      className={`w-8 h-8 rounded-md flex items-center justify-center ${config.className}`}
+      className={`w-8 h-8 rounded-xl flex items-center justify-center ${config.className}`}
       title={config.tooltip}
     >
       <Icon className="w-[18px] h-[18px]" />
@@ -57,8 +57,8 @@ function StateBadge({ state }: { state: AudioState }) {
 export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: LibraryListProps) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-2 h-8">
-        <div className="text-xs font-semibold text-muted-foreground">Audio Library</div>
+      <div className="flex items-center justify-between mb-3 h-8">
+        <div className="text-xs font-semibold uppercase tracking-[.14em] text-[#5c8297]">Audio files</div>
         {selectedFiles.size > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{selectedFiles.size} selected</span>
@@ -69,11 +69,11 @@ export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: Lib
           </div>
         )}
       </div>
-      <div className="border border-border rounded-lg max-h-[280px] overflow-y-auto shadow-sm">
+      <div className="max-h-[360px] overflow-y-auto">
         {files.length === 0 ? (
-          <div className="px-3 py-10 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
+          <div className="px-3 py-10 text-center text-sm text-white/80 flex flex-col items-center gap-2">
             <RippleMark className="h-8 w-8 text-primary" />
-            <div className="font-medium text-foreground">Pull it in, take it under.</div>
+            <div className="font-medium text-white">Pull it in, take it under.</div>
             <div>Paste a YouTube or Apple Podcasts link above to get started.</div>
           </div>
         ) : (
@@ -81,7 +81,7 @@ export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: Lib
             <div
               key={file.id}
               className={`border-b last:border-b-0 border-border/60 cursor-pointer transition-colors ${
-                selectedFiles.has(file.id) ? "bg-primary/10" : "hover:bg-accent"
+                selectedFiles.has(file.id) ? "bg-[#8ed2e4]/25" : "hover:bg-white/55"
               }`}
               onClick={(e) => onFileClick(file.id, e.shiftKey)}
             >

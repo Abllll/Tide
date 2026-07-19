@@ -33,6 +33,27 @@
   }
   body {
     @apply bg-background text-foreground;
+    font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
   }
 }
 
+@layer components {
+  .tide-display { font-family: "Bricolage Grotesque", ui-rounded, sans-serif; font-variation-settings: "opsz" 48, "wdth" 100; letter-spacing: -0.035em; }
+  .soft-panel { @apply border border-white/70 bg-white/75 shadow-[0_18px_45px_rgba(34,104,139,.15)] backdrop-blur-md; }
+}
+
+@keyframes tide-library-plunge {
+  0% { transform: scale(1) translateY(0); }
+  54% { transform: scale(1.14) translateY(-5%); }
+  100% { transform: scale(1.05) translateY(7%); }
+}
+
+.tide-library-plunge { animation: tide-library-plunge 1.05s cubic-bezier(.2,.75,.2,1) both; }
+
+@keyframes tide-library-surface {
+  0% { transform: scale(1.05) translateY(7%); }
+  54% { transform: scale(1.14) translateY(-5%); }
+  100% { transform: scale(1) translateY(0); }
+}
+
+.tide-library-surface { animation: tide-library-surface 1.05s cubic-bezier(.2,.75,.2,1) both; }

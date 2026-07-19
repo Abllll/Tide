@@ -5,9 +5,16 @@ import { Button } from "@/components/ui/button";
 interface SettingsPopoverProps {
   storagePath: string;
   onChangeStorage: () => void;
+  previewEnabled: boolean;
+  onPreviewEnabledChange: (enabled: boolean) => void;
+  previewFill: number;
+  onPreviewFillChange: (fill: number) => void;
+  demoActive: boolean;
+  onStartDemo: () => void;
+  onEndDemo: () => void;
 }
 
-export function SettingsPopover({ storagePath, onChangeStorage }: SettingsPopoverProps) {
+export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, onPreviewEnabledChange, previewFill, onPreviewFillChange, demoActive, onStartDemo, onEndDemo }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -27,14 +34,14 @@ export function SettingsPopover({ storagePath, onChangeStorage }: SettingsPopove
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8 text-foreground hover:bg-black/5"
+        className="h-9 w-9 text-[#174769]"
         onClick={() => setOpen((o) => !o)}
         aria-label="Settings"
       >
         <Settings className="h-4 w-4" />
       </Button>
       {open && (
-        <div className="absolute right-0 top-10 z-10 w-72 rounded-lg border border-border bg-popover p-3 text-popover-foreground shadow-lg">
+        <div className="absolute right-0 top-11 z-30 w-72 rounded-[1.25rem] border border-white/80 bg-white/90 p-4 text-popover-foreground shadow-xl backdrop-blur-md">
           <div className="text-xs font-semibold text-muted-foreground mb-2">Local storage</div>
           <div className="flex items-center gap-2">
             <span className="flex-1 truncate text-sm">{storagePath || "Loading..."}</span>
@@ -43,6 +50,12 @@ export function SettingsPopover({ storagePath, onChangeStorage }: SettingsPopove
               Change
             </Button>
           </div>
+          <details className="mt-4 border-t border-[#174769]/10 pt-3 text-xs">
+            <summary className="cursor-pointer font-medium text-[#52768b]">Preview controls</summary>
+            <label className="mt-3 flex items-center justify-between gap-3 text-[#174769]"><span>Simulate earpiece</span><input type="checkbox" checked={previewEnabled} onChange={event => onPreviewEnabledChange(event.target.checked)} /></label>
+            {previewEnabled && <label className="mt-3 block text-[#52768b]">Storage fullness · {previewFill}%<input className="mt-2 w-full accent-[#4b9bc0]" type="range" min="5" max="98" value={previewFill} onChange={event => onPreviewFillChange(Number(event.target.value))} /></label>}
+            <Button variant="secondary" size="sm" className="mt-4 w-full" onClick={demoActive ? onEndDemo : onStartDemo}>{demoActive ? "End demo" : "Start recording demo"}</Button>
+          </details>
         </div>
       )}
     </div>
