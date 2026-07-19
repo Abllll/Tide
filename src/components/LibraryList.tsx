@@ -58,10 +58,10 @@ export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: Lib
   return (
     <div>
       <div className="flex items-center justify-between mb-3 h-8">
-        <div className="text-xs font-semibold uppercase tracking-[.14em] text-[#5c8297]">Audio files</div>
+        <div className="text-xs font-semibold uppercase tracking-[.14em] text-white/75">Audio files</div>
         {selectedFiles.size > 0 && (
           <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground">{selectedFiles.size} selected</span>
+            <span className="text-xs text-white/75">{selectedFiles.size} selected</span>
             <Button variant="destructive" size="sm" onClick={onDelete}>
               <Trash2 className="w-4 h-4 mr-1.5" />
               Delete
@@ -87,11 +87,11 @@ export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: Lib
             >
               <div className="px-3 py-2.5 flex items-center gap-2.5">
                 <StateBadge state={file.state} />
-                <span className="text-sm text-foreground flex-1">{file.filename}</span>
+                <span className="text-sm text-white flex-1">{file.filename}</span>
               </div>
               {file.download_log && (
                 <div className="px-3 pb-2.5 pl-[48px]">
-                  <div className="text-[11px] font-mono text-muted-foreground bg-muted px-3 py-1 rounded overflow-hidden text-ellipsis whitespace-nowrap">
+                  <div className="text-[11px] font-mono text-white/70 bg-white/10 px-3 py-1 rounded overflow-hidden text-ellipsis whitespace-nowrap">
                     {file.download_log}
                   </div>
                 </div>

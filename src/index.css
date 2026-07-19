@@ -57,3 +57,18 @@
 }
 
 .tide-library-surface { animation: tide-library-surface 1.05s cubic-bezier(.2,.75,.2,1) both; }
+
+@keyframes tide-sync-water-layer {
+  0% { transform: translateY(100%); }
+  88% { transform: translateY(0); }
+  100% { transform: translateY(0); }
+}
+
+.tide-sync-water-layer { animation: tide-sync-water-layer 1.3s cubic-bezier(.05,.9,.18,1) both; }
+
+@keyframes tide-device-ready {
+  0%, 100% { border-color: rgba(255,255,255,.45); box-shadow: 0 12px 28px rgba(0,27,55,.16); }
+  38%, 72% { border-color: rgba(221,255,255,.95); box-shadow: 0 0 0 2px rgba(180,245,255,.3), 0 0 30px rgba(142,231,255,.72); }
+}
+
+.tide-device-ready { animation: tide-device-ready 1.35s ease-in-out 3 both; }

@@ -580,6 +580,12 @@ async fn run_yt_dlp(
             let line = line.trim();
             if line.is_empty() { continue; }
 
+            // yt-dlp emits lines such as "[download]  42.7% ...". Forward the
+            // percentage so Tide can make the waterline a real download indicator.
+            let progress = line
+                .split_whitespace()
+                .find_map(|part| part.strip_suffix('%')?.parse::<f64>().ok());
+
             let mut filename = None;
             if line.contains("Destination: ") {
                 if let Some(path_str) = line.split("Destination: ").nth(1) {
@@ -594,7 +600,8 @@ async fn run_yt_dlp(
                 "id": download_id,
                 "log": line,
                 "status": "downloading",
-                "filename": filename
+                "filename": filename,
+                "progress": progress
             }));
         }
     }

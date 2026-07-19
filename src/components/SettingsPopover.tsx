@@ -11,10 +11,11 @@ interface SettingsPopoverProps {
   onPreviewFillChange: (fill: number) => void;
   demoActive: boolean;
   onStartDemo: () => void;
+  onStartLocalPreview: () => void;
   onEndDemo: () => void;
 }
 
-export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, onPreviewEnabledChange, previewFill, onPreviewFillChange, demoActive, onStartDemo, onEndDemo }: SettingsPopoverProps) {
+export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, onPreviewEnabledChange, previewFill, onPreviewFillChange, demoActive, onStartDemo, onStartLocalPreview, onEndDemo }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -50,11 +51,19 @@ export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, 
               Change
             </Button>
           </div>
+          <div className="mt-4 border-t border-[#174769]/10 pt-3">
+            <div className="mb-2 text-xs font-semibold text-muted-foreground">Recording preview</div>
+            <Button variant="secondary" size="sm" className="mb-2 w-full" onClick={() => { setOpen(false); onStartLocalPreview(); }}>
+              Preview local library
+            </Button>
+            <Button variant="secondary" size="sm" className="w-full" onClick={() => { setOpen(false); demoActive ? onEndDemo() : onStartDemo(); }}>
+              {demoActive ? "End preview" : "Preview earpiece connection"}
+            </Button>
+          </div>
           <details className="mt-4 border-t border-[#174769]/10 pt-3 text-xs">
             <summary className="cursor-pointer font-medium text-[#52768b]">Preview controls</summary>
             <label className="mt-3 flex items-center justify-between gap-3 text-[#174769]"><span>Simulate earpiece</span><input type="checkbox" checked={previewEnabled} onChange={event => onPreviewEnabledChange(event.target.checked)} /></label>
             {previewEnabled && <label className="mt-3 block text-[#52768b]">Storage fullness · {previewFill}%<input className="mt-2 w-full accent-[#4b9bc0]" type="range" min="5" max="98" value={previewFill} onChange={event => onPreviewFillChange(Number(event.target.value))} /></label>}
-            <Button variant="secondary" size="sm" className="mt-4 w-full" onClick={demoActive ? onEndDemo : onStartDemo}>{demoActive ? "End demo" : "Start recording demo"}</Button>
           </details>
         </div>
       )}
