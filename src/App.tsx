@@ -406,7 +406,7 @@ function App() {
   return (
     <>
       <div className="fixed bottom-1 right-1 z-[100] rounded bg-black/70 px-1.5 py-0.5 text-[10px] font-mono text-white">
-        Tide preview build: stuck-intro-fix-r1
+        Tide preview build: post-audit-checkpoint-r1
       </div>
       {showIntro && (
         <WaterIntro
@@ -416,7 +416,7 @@ function App() {
         />
       )}
       <div className="min-h-screen bg-background text-sm text-foreground">
-      <RippleSurface className="sticky top-0 z-20">
+      <RippleSurface className="sticky top-0 z-20 shadow-md">
         <div className="max-w-2xl mx-auto px-4 py-3 space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5 font-semibold text-foreground">

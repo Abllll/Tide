@@ -69,7 +69,7 @@ export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: Lib
           </div>
         )}
       </div>
-      <div className="border border-border rounded-lg max-h-[280px] overflow-y-auto">
+      <div className="border border-border rounded-lg max-h-[280px] overflow-y-auto shadow-sm">
         {files.length === 0 ? (
           <div className="px-3 py-10 text-center text-sm text-muted-foreground flex flex-col items-center gap-2">
             <RippleMark className="h-8 w-8 text-primary" />

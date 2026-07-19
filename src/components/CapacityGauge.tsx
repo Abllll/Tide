@@ -21,7 +21,7 @@ export function CapacityGauge({ device, justSynced }: CapacityGaugeProps) {
 
   if (!device) {
     return (
-      <div className="flex items-center gap-3 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground">
+      <div className="flex items-center gap-3 rounded-xl bg-muted px-3 py-2 text-xs text-muted-foreground shadow-sm">
         <div className="h-14 w-20 shrink-0 rounded-lg bg-muted-foreground/10" />
         No earpiece connected — files will save locally.
       </div>
@@ -33,7 +33,7 @@ export function CapacityGauge({ device, justSynced }: CapacityGaugeProps) {
 
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium transition-transform duration-300 ${
+      className={`flex items-center gap-3 rounded-xl px-3 py-2 text-xs font-medium shadow-sm transition-transform duration-300 ${
         isLow ? "bg-destructive/15 text-destructive" : "bg-primary/15 text-primary"
       } ${justSynced ? "scale-105" : "scale-100"}`}
     >

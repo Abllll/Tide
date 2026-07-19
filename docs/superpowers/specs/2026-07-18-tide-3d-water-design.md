@@ -88,6 +88,31 @@ lighting/motion is actually legible, not a decorative sliver) containing an
 text label (device name, free space, "· low space" suffix) — same external props
 (`device`, `justSynced`) and same no-device/dry-state behavior as before.
 
+## Implementation Amendments (2026-07-19)
+
+Two things changed after this spec was first written and implemented, corrected here so
+the document matches what's actually built (previously only mentioned in commit messages
+and plan Global Constraints, not folded back into this spec):
+
+1. **Displacement technique.** The "Geometry"/"Material" sections above describe vertex
+   displacement via a `MeshPhysicalMaterial` patched with `onBeforeCompile`. The actual
+   implementation instead displaces the plane's vertex positions directly in JavaScript
+   every frame (`useFrame`) and calls `geometry.computeVertexNormals()` afterward, letting
+   the *unmodified* `MeshPhysicalMaterial` light the real displaced surface. Same visible
+   result (real 3D ripples, correct lighting response), chosen because it doesn't depend
+   on three.js's internal shader-chunk naming across versions and was safer to implement
+   without the ability to visually compile-check custom GLSL in this environment.
+2. **Entrance reveal direction.** The "Entrance" section above implies the intro's fill
+   rises vertically (bottom-to-top), matching the retired Canvas2D version's behavior. In
+   practice this read as wrong once seen — per feedback, the full-screen entrance instead
+   **sweeps left-to-right** via a `THREE.Plane` clipping plane on the water material
+   (revealing progressively more of a fixed-position water plane, rather than translating
+   it vertically), while the **panel variant still fills bottom-up** (unchanged — a
+   container of liquid filling sideways doesn't match the "how full is my earpiece"
+   metaphor). The wave geometry/lighting technique itself is unaffected by this change;
+   only how much of it is revealed, and along which axis, differs from the original text
+   above.
+
 ## Performance
 
 - Continuous vertex-shader animation (via `useFrame`) is heavier than the retired
