@@ -66,9 +66,62 @@
 
 .tide-sync-water-layer { animation: tide-sync-water-layer 1.3s cubic-bezier(.05,.9,.18,1) both; }
 
+@keyframes tide-sync-source-flow {
+  0% { transform: translateX(0) scale(1); opacity: 1; }
+  72% { transform: translateX(48%) scale(.92); opacity: .3; }
+  100% { transform: translateX(54%) scale(.9); opacity: 0; }
+}
+
+.tide-sync-source-flow { animation: tide-sync-source-flow 1.15s cubic-bezier(.05,.9,.18,1) both; }
+
 @keyframes tide-device-ready {
   0%, 100% { border-color: rgba(255,255,255,.45); box-shadow: 0 12px 28px rgba(0,27,55,.16); }
   38%, 72% { border-color: rgba(221,255,255,.95); box-shadow: 0 0 0 2px rgba(180,245,255,.3), 0 0 30px rgba(142,231,255,.72); }
 }
 
 .tide-device-ready { animation: tide-device-ready 1.35s ease-in-out 3 both; }
+
+@keyframes tide-identity-scene {
+  0%, 10% { opacity: 0; }
+  22%, 78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.tide-identity-scene { animation: tide-identity-scene 4.8s ease-in-out both; }
+
+@keyframes tide-identity-ripple {
+  0% { transform: scale(.6); opacity: 0; }
+  30% { transform: scale(1.35); opacity: 1; }
+  100% { transform: scale(1.9); opacity: 0; }
+}
+
+.tide-identity-ripple { animation: tide-identity-ripple 2.2s ease-out infinite; }
+
+@keyframes tide-search-sweep {
+  0% { transform: translateX(-110%); }
+  100% { transform: translateX(220%); }
+}
+
+.tide-search-sweep { animation: tide-search-sweep 1.25s ease-in-out infinite; }
+
+@keyframes tide-playlist-reveal {
+  0% { transform: translateY(8px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.tide-playlist-reveal { animation: tide-playlist-reveal .5s ease-out both; }
+
+@keyframes tide-library-menu {
+  0% { transform: translateY(-6px) scale(.96); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.tide-library-menu { animation: tide-library-menu .28s cubic-bezier(.2,.8,.2,1) both; }
+
+@keyframes tide-library-reorder {
+  0% { transform: translateY(18px); opacity: .25; }
+  65% { transform: translateY(-2px); opacity: 1; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+
+.tide-library-reorder { animation: tide-library-reorder .62s cubic-bezier(.2,.85,.2,1) both; }

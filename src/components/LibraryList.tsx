@@ -8,6 +8,7 @@ interface LibraryListProps {
   selectedFiles: Set<string>;
   onFileClick: (fileId: string, shiftKey: boolean) => void;
   onDelete: () => void;
+  isReordering?: boolean;
 }
 
 const STATE_CONFIG: Record<
@@ -17,27 +18,27 @@ const STATE_CONFIG: Record<
   queued: {
     icon: Clock,
     className: "bg-muted text-muted-foreground",
-    tooltip: "Waiting in queue to download",
+    tooltip: "Waiting to be added to your offline library",
   },
   downloading: {
     icon: Download,
     className: "bg-primary/15 text-primary",
-    tooltip: "Downloading from source, will sync to USB when complete",
+    tooltip: "Preparing media for offline listening",
   },
   local: {
     icon: HardDrive,
     className: "bg-secondary text-secondary-foreground",
-    tooltip: "File is on local machine only, waiting to sync to USB",
+    tooltip: "In your offline library and ready to sync",
   },
   syncing: {
     icon: RefreshCw,
     className: "bg-primary/15 text-primary animate-pulse",
-    tooltip: "Copying file to USB device",
+    tooltip: "Preparing the connected device",
   },
   synced: {
     icon: CheckCircle,
     className: "bg-primary text-primary-foreground",
-    tooltip: "File is on local machine and USB device",
+    tooltip: "Available in your offline library and on the device",
   },
 };
 
@@ -54,11 +55,11 @@ function StateBadge({ state }: { state: AudioState }) {
   );
 }
 
-export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: LibraryListProps) {
+export function LibraryList({ files, selectedFiles, onFileClick, onDelete, isReordering = false }: LibraryListProps) {
   return (
     <div>
       <div className="flex items-center justify-between mb-3 h-8">
-        <div className="text-xs font-semibold uppercase tracking-[.14em] text-white/75">Audio files</div>
+        <div className="text-xs font-semibold uppercase tracking-[.14em] text-white/75">Offline collection</div>
         {selectedFiles.size > 0 && (
           <div className="flex items-center gap-2">
             <span className="text-xs text-white/75">{selectedFiles.size} selected</span>
@@ -74,13 +75,14 @@ export function LibraryList({ files, selectedFiles, onFileClick, onDelete }: Lib
           <div className="px-3 py-10 text-center text-sm text-white/80 flex flex-col items-center gap-2">
             <RippleMark className="h-8 w-8 text-primary" />
             <div className="font-medium text-white">Pull it in, take it under.</div>
-            <div>Paste a YouTube or Apple Podcasts link above to get started.</div>
+            <div>Add a supported media link above to begin your offline library.</div>
           </div>
         ) : (
-          files.map((file) => (
+          files.map((file, index) => (
             <div
               key={file.id}
-              className={`border-b last:border-b-0 border-border/60 cursor-pointer transition-colors ${
+              style={isReordering ? { animationDelay: `${index * 90}ms` } : undefined}
+              className={`border-b last:border-b-0 border-border/60 cursor-pointer transition-colors ${isReordering ? "tide-library-reorder" : ""} ${
                 selectedFiles.has(file.id) ? "bg-[#8ed2e4]/25" : "hover:bg-white/55"
               }`}
               onClick={(e) => onFileClick(file.id, e.shiftKey)}

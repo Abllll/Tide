@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { Settings, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
+export type PortfolioDemoScene = "identity" | "import" | "library" | "pair" | "sync" | "future";
+
 interface SettingsPopoverProps {
   storagePath: string;
   onChangeStorage: () => void;
@@ -9,13 +11,11 @@ interface SettingsPopoverProps {
   onPreviewEnabledChange: (enabled: boolean) => void;
   previewFill: number;
   onPreviewFillChange: (fill: number) => void;
-  demoActive: boolean;
-  onStartDemo: () => void;
-  onStartLocalPreview: () => void;
+  onPlayScene: (scene: PortfolioDemoScene) => void;
   onEndDemo: () => void;
 }
 
-export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, onPreviewEnabledChange, previewFill, onPreviewFillChange, demoActive, onStartDemo, onStartLocalPreview, onEndDemo }: SettingsPopoverProps) {
+export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, onPreviewEnabledChange, previewFill, onPreviewFillChange, onPlayScene, onEndDemo }: SettingsPopoverProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -52,13 +52,18 @@ export function SettingsPopover({ storagePath, onChangeStorage, previewEnabled, 
             </Button>
           </div>
           <div className="mt-4 border-t border-[#174769]/10 pt-3">
-            <div className="mb-2 text-xs font-semibold text-muted-foreground">Recording preview</div>
-            <Button variant="secondary" size="sm" className="mb-2 w-full" onClick={() => { setOpen(false); onStartLocalPreview(); }}>
-              Preview local library
-            </Button>
-            <Button variant="secondary" size="sm" className="w-full" onClick={() => { setOpen(false); demoActive ? onEndDemo() : onStartDemo(); }}>
-              {demoActive ? "End preview" : "Preview earpiece connection"}
-            </Button>
+            <div className="mb-2 text-xs font-semibold text-muted-foreground">Portfolio scenes</div>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                ["identity", "01 · Identity"],
+                ["import", "02 · Import"],
+                ["library", "03 · Library"],
+                ["pair", "04 · Pair device"],
+                ["sync", "05 · Sync"],
+                ["future", "06 · Future"],
+              ] as const).map(([scene, label]) => <Button key={scene} variant="secondary" size="sm" className="justify-start text-xs" onClick={() => { setOpen(false); onPlayScene(scene); }}>{label}</Button>)}
+            </div>
+            <Button variant="ghost" size="sm" className="mt-2 w-full text-xs" onClick={() => { setOpen(false); onEndDemo(); }}>Reset preview</Button>
           </div>
           <details className="mt-4 border-t border-[#174769]/10 pt-3 text-xs">
             <summary className="cursor-pointer font-medium text-[#52768b]">Preview controls</summary>

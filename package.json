@@ -1,5 +1,6 @@
 {
   "name": "shokz-audio-app",
+  "description": "A water-inspired desktop workflow for preparing offline media and syncing compatible devices.",
   "private": true,
   "version": "0.1.0",
   "type": "module",

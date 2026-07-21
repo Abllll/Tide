@@ -15,15 +15,25 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { RippleMark } from "@/components/BrandMarks";
 import { CapacityGauge } from "@/components/CapacityGauge";
 import { SyncWorkspace } from "@/components/SyncWorkspace";
-import { SettingsPopover } from "@/components/SettingsPopover";
+import { SettingsPopover, type PortfolioDemoScene } from "@/components/SettingsPopover";
 import { LibraryList } from "@/components/LibraryList";
+import { LibraryDemoToolbar, PortfolioDemoOverlay, type LibraryDemoStep, type PairStage } from "@/components/PortfolioDemoOverlay";
 import type { AudioFile, UsbDevice } from "@/types";
 
 const DEMO_AUDIO_FILES: AudioFile[] = [
-  { id: "demo-lap-01", filename: "Open-water breathing technique.mp3", state: "local" },
-  { id: "demo-lap-02", filename: "Freestyle technique breakdown.mp3", state: "local" },
-  { id: "demo-lap-03", filename: "How to find your flow in the water.mp3", state: "local" },
+  { id: "demo-lap-01", filename: "Designing resilient desktop workflows", state: "local" },
+  { id: "demo-lap-02", filename: "How engineers prototype motion systems", state: "local" },
+  { id: "demo-lap-03", filename: "The craft of calm product interfaces", state: "local" },
 ];
+
+const LIBRARY_DEMO_FILES: AudioFile[] = [
+  ...DEMO_AUDIO_FILES,
+  { id: "demo-lap-04", filename: "Building a durable component library", state: "local" },
+  { id: "demo-lap-05", filename: "Motion as system feedback", state: "local" },
+  { id: "demo-lap-06", filename: "Field notes on connected-device states", state: "local" },
+];
+
+const INTERACTION_DEMO_FILES = LIBRARY_DEMO_FILES.filter(file => ["demo-lap-02", "demo-lap-03", "demo-lap-05"].includes(file.id));
 
 function App() {
   const [url, setUrl] = useState("");
@@ -43,13 +53,18 @@ function App() {
   const [syncWaterHeight, setSyncWaterHeight] = useState(8);
   const [isLibraryTransitioning, setIsLibraryTransitioning] = useState(false);
   const [isLibraryView, setIsLibraryView] = useState(false);
-  const [isDemoMode, setIsDemoMode] = useState(false);
   const [isPulling, setIsPulling] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
+  const [demoScene, setDemoScene] = useState<PortfolioDemoScene | null>(null);
+  const [pairStage, setPairStage] = useState<PairStage>("searching");
+  const [libraryDemoStep, setLibraryDemoStep] = useState<LibraryDemoStep>("search");
+  const [isLibraryReordering, setIsLibraryReordering] = useState(false);
+  const [futureStage, setFutureStage] = useState<"article" | "narration" | "ready">("article");
   const [transitionDirection, setTransitionDirection] = useState<"into" | "out">("into");
   const audioFilesRef = useRef<AudioFile[]>([]);
   const libraryRef = useRef<HTMLElement>(null);
   const connectedDeviceRef = useRef<string | null>(null);
+  const demoTimersRef = useRef<number[]>([]);
 
   // Keep ref in sync with state for event listeners
   useEffect(() => {
@@ -70,7 +85,7 @@ function App() {
 
         // Update filename if provided in event and not already updated
         let filename = file.filename;
-        if (event.payload.filename && filename === "Downloading...") {
+        if (event.payload.filename && filename === "Preparing media…") {
           filename = event.payload.filename;
         }
 
@@ -282,13 +297,13 @@ function App() {
 
   // Delete handler
   const handleDelete = async () => {
-    // Filter out files that are currently downloading
+    // Items still being prepared cannot be removed.
     const filesToDelete = audioFiles.filter(
       (f) => selectedFiles.has(f.id) && f.state !== "downloading"
     );
 
     if (filesToDelete.length === 0) {
-      alert("Cannot delete files that are currently downloading. Please wait for downloads to complete.");
+      alert("Items being prepared can’t be removed yet. Please wait until preparation is complete.");
       return;
     }
 
@@ -297,7 +312,7 @@ function App() {
     const fileIds = filesToDelete.map((f) => f.id);
 
     const confirmed = window.confirm(
-      `Delete ${count} file(s)?\n\n${filenames.join("\n")}\n\nFiles will be removed from:\n✓ Local storage (${storagePath})\n✓ USB device (SHOKZ_DEVICE)`
+      `Remove ${count} item(s)?\n\n${filenames.join("\n")}\n\nItems will be removed from:\n✓ Offline library (${storagePath})\n✓ Connected device, if available`
     );
 
     if (confirmed) {
@@ -328,10 +343,10 @@ function App() {
     }
   };
 
-  // Add to download queue
+  // Add media to the preparation queue.
   const handleAddUrl = async () => {
     if (!url.trim() || !validationMsg?.type || validationMsg.type !== "success") {
-      alert("Please enter a valid YouTube or Apple Podcast URL");
+      alert("Enter a supported media link to add it to your offline library.");
       return;
     }
 
@@ -346,9 +361,9 @@ function App() {
       // Add a temporary entry to the audio library
       const tempFile: AudioFile = {
         id: downloadId,
-        filename: "Downloading...",
+        filename: "Preparing media…",
         state: "downloading",
-        download_log: "Starting download...",
+        download_log: "Adding to offline library…",
       };
 
       setAudioFiles(prev => [tempFile, ...prev]);
@@ -356,8 +371,8 @@ function App() {
     } catch (error) {
       setIsPulling(false);
       setDownloadProgress(0);
-      console.error("Download failed:", error);
-      alert("Failed to start download: " + error);
+      console.error("Media preparation failed:", error);
+      alert("Couldn’t prepare this media: " + error);
     }
   };
 
@@ -371,7 +386,7 @@ function App() {
   const waterHeight = syncRise || isLibraryTransitioning || isLibraryView ? 100 : isPulling ? Math.min(92, Math.round(33 + downloadProgress * 0.59)) : Math.max(33, Math.min(56, Math.round(33 + usedFraction * 23)));
   const waterlineFeather = 72;
   // The resting waterline sits through the centre of the link field; from
-  // there, download/sync progress only ever pulls it upward.
+  // there, preparation and sync progress only ever pull it upward.
   const waterlineTop = 710 * (1 - waterHeight / 100);
   const syncableFiles = audioFiles.filter(file => file.state !== "downloading");
   const syncProgress = syncableFiles.length ? syncableFiles.filter(file => file.state === "synced").length / syncableFiles.length : 0;
@@ -427,38 +442,141 @@ function App() {
     window.setTimeout(() => setIsLibraryTransitioning(false), 1080);
   };
 
+  const clearDemoTimers = () => {
+    demoTimersRef.current.forEach(window.clearTimeout);
+    demoTimersRef.current = [];
+  };
+
+  const scheduleDemo = (callback: () => void, delay: number) => {
+    const timer = window.setTimeout(callback, delay);
+    demoTimersRef.current.push(timer);
+  };
+
+  const resetToLanding = () => {
+    setIsLibraryView(false);
+    setIsLibraryTransitioning(false);
+    setMockConnected(false);
+    setSyncStatus("");
+    setSyncRise(false);
+    setIsPulling(false);
+    setDownloadProgress(0);
+    window.scrollTo(0, 0);
+  };
+
+  const playPortfolioScene = (scene: PortfolioDemoScene) => {
+    clearDemoTimers();
+    setDemoScene(scene);
+    setSelectedFiles(new Set());
+
+    if (scene === "identity") {
+      resetToLanding();
+      scheduleDemo(() => setDemoScene(null), 5200);
+      return;
+    }
+
+    if (scene === "import") {
+      resetToLanding();
+      setUrl("media.tide.app/design-engineering-session");
+      setAudioFiles([{ id: "demo-importing", filename: "Design engineering session", state: "downloading", download_log: "Preparing media…" }]);
+      setIsPulling(true);
+      [18, 38, 61, 82, 100].forEach((progress, index) => scheduleDemo(() => setDownloadProgress(progress), 520 + index * 620));
+      scheduleDemo(() => {
+        setAudioFiles(DEMO_AUDIO_FILES.map(file => ({ ...file })));
+        setUrl("");
+        setIsPulling(false);
+        handleLibraryTransition();
+      }, 3900);
+      scheduleDemo(() => setDemoScene(null), 5100);
+      return;
+    }
+
+    if (scene === "library") {
+      resetToLanding();
+      setLibraryDemoStep("search");
+      scheduleDemo(() => {
+        setAudioFiles(LIBRARY_DEMO_FILES.map(file => ({ ...file })));
+        handleLibraryTransition();
+      }, 5000);
+      scheduleDemo(() => setLibraryDemoStep("filter-open"), 6200);
+      scheduleDemo(() => {
+        setAudioFiles(INTERACTION_DEMO_FILES.map(file => ({ ...file })));
+        setLibraryDemoStep("filter-applied");
+      }, 7200);
+      scheduleDemo(() => setLibraryDemoStep("reorder-open"), 8000);
+      scheduleDemo(() => {
+        setAudioFiles(files => [...files].reverse());
+        setLibraryDemoStep("reorder-applied");
+        setIsLibraryReordering(true);
+        scheduleDemo(() => setIsLibraryReordering(false), 850);
+      }, 10000);
+      scheduleDemo(() => setLibraryDemoStep("playlist"), 10800);
+      scheduleDemo(() => setDemoScene(null), 11500);
+      return;
+    }
+
+    if (scene === "pair") {
+      resetToLanding();
+      setDemoScene(null);
+      scheduleDemo(() => { setDemoScene("pair"); setPairStage("searching"); }, 5000);
+      scheduleDemo(() => setPairStage("found"), 6500);
+      scheduleDemo(() => setPairStage("connected"), 7850);
+      scheduleDemo(() => {
+        setMockConnected(true);
+        setMockFill(42);
+        setAudioFiles(DEMO_AUDIO_FILES.map(file => ({ ...file })));
+        handleLibraryTransition();
+      }, 8550);
+      scheduleDemo(() => setDemoScene(null), 10600);
+      return;
+    }
+
+    if (scene === "sync") {
+      resetToLanding();
+      scheduleDemo(() => {
+        setMockConnected(true);
+        setMockFill(42);
+        setAudioFiles(DEMO_AUDIO_FILES.map(file => ({ ...file })));
+        setSyncStatus("Device connected · ready to sync");
+        handleLibraryTransition();
+      }, 5000);
+      scheduleDemo(() => setDemoScene(null), 10200);
+      return;
+    }
+
+    resetToLanding();
+    setDemoScene(null);
+    scheduleDemo(() => { setDemoScene("future"); setFutureStage("article"); }, 5000);
+    scheduleDemo(() => setFutureStage("narration"), 6300);
+    scheduleDemo(() => {
+      setFutureStage("ready");
+      setAudioFiles([...DEMO_AUDIO_FILES.map(file => ({ ...file })), { id: "demo-narration", filename: "Design systems field notes · narration preview", state: "local" }]);
+      handleLibraryTransition();
+    }, 7700);
+    scheduleDemo(() => setDemoScene(null), 10200);
+  };
+
   const handlePreviewConnection = (enabled: boolean) => {
     setMockConnected(enabled);
     if (enabled) handleLibraryTransition();
   };
 
-  const startRecordingDemo = () => {
-    setIsDemoMode(true);
-    setMockFill(42);
-    setMockConnected(true);
-    setSelectedFiles(new Set());
-    setAudioFiles(DEMO_AUDIO_FILES.map(file => ({ ...file })));
-    setSyncStatus("Preview earpiece connected");
-    window.setTimeout(handleLibraryTransition, 260);
-  };
-
-  const startLocalLibraryPreview = () => {
-    setIsDemoMode(true);
-    setMockConnected(false);
-    setSelectedFiles(new Set());
-    setAudioFiles(DEMO_AUDIO_FILES.map(file => ({ ...file })));
-    setSyncStatus("");
-    window.setTimeout(handleLibraryTransition, 260);
-  };
-
   const endRecordingDemo = () => {
-    setIsDemoMode(false);
+    clearDemoTimers();
+    setDemoScene(null);
     setMockConnected(false);
     setAudioFiles([]);
     setSyncStatus("");
     setIsLibraryView(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  useEffect(() => {
+    if (demoScene !== "sync" || !isLibraryView || !mockConnected) return;
+    const timer = window.setTimeout(() => { void handleSync(); }, 750);
+    return () => window.clearTimeout(timer);
+    // The scene only starts its automatic transfer after the existing Library transition completes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [demoScene, isLibraryView, mockConnected]);
 
   useEffect(() => {
     if (!realDevice || connectedDeviceRef.current === realDevice.id) return;
@@ -487,17 +605,17 @@ function App() {
   }, [isLibraryTransitioning, isLibraryView]);
 
   return <div className="relative min-h-screen overflow-x-hidden text-sm text-[#163e5b]">
-    <main className="relative isolate z-10"><div className="absolute inset-x-0 bottom-0 z-0 overflow-hidden transition-[top] duration-1000 ease-[cubic-bezier(.22,.8,.22,1)]" style={{ top: `${isLibraryTransitioning || isLibraryView ? 0 : waterlineTop - waterlineFeather}px` }}><img src="/water/tide-waterline.gif" alt="" className={`h-full w-full object-cover object-top ${isLibraryTransitioning ? transitionDirection === "into" ? "tide-library-plunge" : "tide-library-surface" : ""}`} /></div>{isLibraryView && <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1] bg-gradient-to-t from-[#3dc7df]/35 via-[#127aa7]/12 to-transparent transition-[height] ease-[cubic-bezier(.05,.9,.18,1)] ${syncRise ? "duration-[1300ms]" : "duration-700"}`} style={{ height: `${Math.max(10, syncRise ? syncWaterHeight : syncProgress * 100)}%` }} />}{syncRise && <div className="pointer-events-none absolute inset-0 z-[15] overflow-hidden tide-sync-water-layer"><img src="/water/tide-waterline.gif" alt="" className="h-full w-full object-cover object-top" /></div>}
+    <main className="relative isolate z-10"><div className="absolute inset-x-0 bottom-0 z-0 overflow-hidden transition-[top] duration-1000 ease-[cubic-bezier(.22,.8,.22,1)]" style={{ top: `${isLibraryTransitioning || isLibraryView ? 0 : waterlineTop - waterlineFeather}px` }}><img src="/water/tide-waterline.gif" alt="" className={`h-full w-full object-cover object-top ${isLibraryTransitioning ? transitionDirection === "into" ? "tide-library-plunge" : "tide-library-surface" : ""}`} /></div>{isLibraryView && <div className={`pointer-events-none absolute inset-x-0 bottom-0 z-[1] bg-gradient-to-t from-[#3dc7df]/35 via-[#127aa7]/12 to-transparent transition-[height] ease-[cubic-bezier(.05,.9,.18,1)] ${syncRise ? "duration-[1300ms]" : "duration-700"}`} style={{ height: `${Math.max(10, syncRise ? syncWaterHeight : syncProgress * 100)}%` }} />}{syncRise && <div className="pointer-events-none absolute inset-0 z-[15] overflow-hidden tide-sync-water-layer"><img src="/water/tide-waterline.gif" alt="" className="h-full w-full object-cover object-top" /></div>}<PortfolioDemoOverlay scene={demoScene} pairStage={pairStage} futureStage={futureStage} />
       {!isLibraryView && <section className="relative z-10 min-h-screen overflow-hidden">
         <div className={`absolute inset-x-0 top-0 z-0 transition-[height,opacity] duration-700 ease-out ${isLibraryTransitioning ? "opacity-0" : "opacity-100"}`} style={{ height: `${waterlineTop + waterlineFeather}px`, background: "linear-gradient(to bottom, #fcfcfb 0, #fcfcfb calc(100% - 72px), rgba(252,252,251,.62) calc(100% - 28px), transparent 100%)" }} />
         <div className={`relative z-20 mx-auto max-w-5xl px-7 pt-7 transition-all duration-700 ease-out ${isLibraryTransitioning ? "pointer-events-none -translate-y-10 opacity-0" : "translate-y-0 opacity-100"}`}>
-          <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[.42em] text-[#30536b]"><RippleMark className="h-3.5 w-3.5 text-[#1f5678]" /><div className="hidden items-center gap-10 sm:flex"><button type="button" onClick={handleLibraryTransition} className="transition-opacity hover:opacity-55">Library</button><span>About</span></div><SettingsPopover storagePath={storagePath} onChangeStorage={handleChangeStorage} previewEnabled={mockConnected} onPreviewEnabledChange={handlePreviewConnection} previewFill={mockFill} onPreviewFillChange={setMockFill} demoActive={isDemoMode} onStartDemo={startRecordingDemo} onStartLocalPreview={startLocalLibraryPreview} onEndDemo={endRecordingDemo} /></div>
-          <div className="mx-auto max-w-3xl pt-24 text-center sm:pt-32"><h1 className="tide-display pl-[.14em] text-[clamp(5.5rem,16vw,10rem)] leading-[.76] tracking-[.14em] text-[#193e57]">Tide</h1><p className="mt-8 text-[10px] font-semibold uppercase tracking-[.48em] text-[#7290a0]">Pull it in, take it under.</p><p className="mt-4 text-sm text-[#52768b]">Turn the videos you’re into right now into swim-ready audio.</p></div>
-          <div className="relative mx-auto mt-14 max-w-xl"><div className="flex flex-wrap justify-center gap-2"><Input placeholder="Paste a YouTube or Apple Podcasts link" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddUrl()} className="min-w-[230px] flex-1" /><Select value={speed} onValueChange={setSpeed}><SelectTrigger className="h-11 w-24 rounded-[1.35rem] border border-white/50 bg-gradient-to-br from-[#d7f5f3]/80 via-[#80d2e6]/72 to-[#398bb7]/72 text-white shadow-[0_10px_25px_rgba(67,157,192,.2),inset_0_1px_1px_rgba(255,255,255,.8)] backdrop-blur-md"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1.0">1.0x</SelectItem><SelectItem value="1.25">1.25x</SelectItem><SelectItem value="1.5">1.5x</SelectItem><SelectItem value="2.0">2.0x</SelectItem><SelectItem value="3.0">3.0x</SelectItem></SelectContent></Select></div></div>
+          <div className="flex items-center justify-between text-[9px] font-semibold uppercase tracking-[.42em] text-[#30536b]"><RippleMark className="h-3.5 w-3.5 text-[#1f5678]" /><div className="hidden items-center gap-10 sm:flex"><button type="button" onClick={handleLibraryTransition} className="transition-opacity hover:opacity-55">Library</button><span>About</span></div><SettingsPopover storagePath={storagePath} onChangeStorage={handleChangeStorage} previewEnabled={mockConnected} onPreviewEnabledChange={handlePreviewConnection} previewFill={mockFill} onPreviewFillChange={setMockFill} onPlayScene={playPortfolioScene} onEndDemo={endRecordingDemo} /></div>
+          <div className="mx-auto max-w-3xl pt-24 text-center sm:pt-32"><h1 className="tide-display pl-[.14em] text-[clamp(5.5rem,16vw,10rem)] leading-[.76] tracking-[.14em] text-[#193e57]">Tide</h1><p className="mt-8 text-[10px] font-semibold uppercase tracking-[.48em] text-[#7290a0]">Pull it in, take it under.</p><p className="mt-4 text-sm text-[#52768b]">Prepare media for offline listening, ready for the water.</p></div>
+          <div className="relative mx-auto mt-14 max-w-xl"><div className="flex flex-wrap justify-center gap-2"><Input placeholder="Paste a supported media link" value={url} onChange={(e) => setUrl(e.target.value)} onKeyDown={(e) => e.key === "Enter" && handleAddUrl()} className="min-w-[230px] flex-1" /><Select value={speed} onValueChange={setSpeed}><SelectTrigger className="h-11 w-24 rounded-[1.35rem] border border-white/50 bg-gradient-to-br from-[#d7f5f3]/80 via-[#80d2e6]/72 to-[#398bb7]/72 text-white shadow-[0_10px_25px_rgba(67,157,192,.2),inset_0_1px_1px_rgba(255,255,255,.8)] backdrop-blur-md"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="1.0">1.0x</SelectItem><SelectItem value="1.25">1.25x</SelectItem><SelectItem value="1.5">1.5x</SelectItem><SelectItem value="2.0">2.0x</SelectItem><SelectItem value="3.0">3.0x</SelectItem></SelectContent></Select></div></div>
         </div>
         <div style={{ top: `${waterlineTop + 132}px` }} className={`absolute left-1/2 z-10 -translate-x-1/2 text-center transition-all duration-700 ${isLibraryTransitioning ? "translate-y-8 opacity-0" : "translate-y-0 opacity-100"}`}><Button disabled={isPulling} onClick={handleAddUrl}><Droplet />{isPulling ? "Pulling in" : "Pull in"}</Button>{isPulling && <p className="mt-2 text-[10px] font-semibold uppercase tracking-[.22em] text-white/85">Pulling in · {Math.round(downloadProgress)}%</p>}</div>
       </section>}
-      {isLibraryView && <section ref={libraryRef} className="relative z-20 mx-auto min-h-screen max-w-4xl px-4 pb-16 pt-16"><div className="px-2 py-5 sm:px-7"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.28em] text-[#d7f4f7]/75">Your current</p><h2 className="tide-display mt-2 text-4xl text-white">Library</h2><CapacityGauge device={currentDevice} className="mt-3 text-white" /></div></div>{currentDevice && <><SyncWorkspace files={audioFiles} device={currentDevice} status={syncStatus} /><div className="mb-8 flex justify-center"><Button className={justSynced ? "scale-105" : ""} onClick={handleSync}><RefreshCw className={syncRise ? "animate-spin" : ""} />Sync files</Button></div></>}{usbDevices.length > 0 && !mockConnected && <Select value={selectedDevice} onValueChange={setSelectedDevice} onOpenChange={open => { if (open) loadUsbDevices(); }}><SelectTrigger className="mb-4 w-52 rounded-full bg-white/20 text-xs text-white backdrop-blur-sm"><SelectValue placeholder="Select earpiece" /></SelectTrigger><SelectContent>{usbDevices.map(device => <SelectItem key={device.id} value={device.id}>{device.name} ({device.available_space_gb.toFixed(1)} GB free)</SelectItem>)}</SelectContent></Select>}<LibraryList files={audioFiles} selectedFiles={selectedFiles} onFileClick={handleFileClick} onDelete={handleDelete} />{syncStatus && <p className={`mt-4 text-xs ${syncStatus.includes("failed") ? "text-[#ffd5cf]" : "text-white/80"}`}>{syncStatus}</p>}</div></section>}
+      {isLibraryView && <section ref={libraryRef} className="relative z-20 mx-auto min-h-screen max-w-4xl px-4 pb-16 pt-16"><div className="px-2 py-5 sm:px-7"><div className="mb-5 flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.28em] text-[#d7f4f7]/75">Your current</p><h2 className="tide-display mt-2 text-4xl text-white">Library</h2><CapacityGauge device={currentDevice} className="mt-3 text-white" /></div></div>{demoScene === "library" && <LibraryDemoToolbar step={libraryDemoStep} />}{currentDevice && <><SyncWorkspace files={audioFiles} device={currentDevice} status={syncStatus} isSyncing={syncRise} /><div className="mb-8 flex justify-center"><Button className={justSynced ? "scale-105" : ""} onClick={handleSync}><RefreshCw className={syncRise ? "animate-spin" : ""} />Sync files</Button></div></>}{usbDevices.length > 0 && !mockConnected && <Select value={selectedDevice} onValueChange={setSelectedDevice} onOpenChange={open => { if (open) loadUsbDevices(); }}><SelectTrigger className="mb-4 w-52 rounded-full bg-white/20 text-xs text-white backdrop-blur-sm"><SelectValue placeholder="Select earpiece" /></SelectTrigger><SelectContent>{usbDevices.map(device => <SelectItem key={device.id} value={device.id}>{device.name} ({device.available_space_gb.toFixed(1)} GB free)</SelectItem>)}</SelectContent></Select>}<LibraryList files={audioFiles} selectedFiles={selectedFiles} onFileClick={handleFileClick} onDelete={handleDelete} isReordering={isLibraryReordering} />{syncStatus && <p className={`mt-4 text-xs ${syncStatus.includes("failed") ? "text-[#ffd5cf]" : "text-white/80"}`}>{syncStatus}</p>}</div></section>}
     </main>
   </div>;
 }

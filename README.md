@@ -1,68 +1,102 @@
-# Shokz Audio
+# Tide
 
-A cross-platform desktop tool to download audio from YouTube videos and Apple Podcasts, convert them to MP3, adjust playback speed, and automatically sync files to MP3 devices (like Shokz OpenSwim) for offline playback.
+Tide is a desktop companion for swimmers who prepare audio for offline listening on compatible waterproof devices. It turns the practical work of collecting, organising, preparing, and syncing media into a calm pre-swim ritual.
 
-## Features
+> Import → Organise → Prepare → Sync → Swim
 
-### 🎧 Audio Downloads
-- **YouTube Support**: Paste any YouTube video URL to extract high-quality audio.
-- **Apple Podcasts**: Download episodes directly from Apple Podcast URLs.
-- **Format**: Automatically converts to MP3 format.
-- **Speed Adjustment**: Speed up content (0.5x to 2.0x) before downloading—perfect for long podcasts.
-- **Smart Chunking**: Automatically splits long audio files (>30 mins) into equal segments (e.g., a 44-minute podcast becomes two 22-minute files) so no content is lost.
+## Product Overview
 
-### 📥 Queue System
-- **Batch Processing**: Add multiple URLs to the queue.
-- **Concurrent Downloads**: Downloads multiple files simultaneously for speed.
-- **Live Progress**: See real-time download statistics and logs.
+Tide brings a desktop workflow to the moment before a swim. A person adds supported media to an offline library, adjusts listening speed when useful, reviews what is ready, and syncs the collection to a connected device.
 
-### 🔄 USB Sync & Management
-- **Device Detection**: Automatically detects connected USB audio players.
-- **Auto-Sync**: Seamlessly transfer downloaded files to your device.
-- **Unified Library**: View and manage files on both your computer and connected device.
-- **Easy Cleanup**: Delete files from local storage and USB device in one click.
+The concept is designed as a portfolio case study for product thinking, desktop interaction design, motion, and system architecture—not as a platform-specific media service.
 
-## Installation
+## Problem
 
-### Prerequisites
-- This application bundles `yt-dlp` and `ffmpeg`, so no external dependencies are required for core functionality.
+Preparing audio for a swim is usually fragmented: media lives across sources, files are difficult to review on a desktop, and device transfer feels like an opaque utility step. The workflow is functional, but it offers little confidence about what is ready to take offline.
 
-### yt-dlp auto-update
-`yt-dlp` breaks whenever sites change their internals, so the app does not rely on
-the frozen bundled copy. On every launch it silently refreshes `yt-dlp` from the
-[nightly channel](https://github.com/yt-dlp/yt-dlp-nightly-builds) into a writable
-per-user cache (best-effort — a failed update never breaks a working install).
-Your system `yt-dlp`, if any, is never touched or used.
+## Solution
 
-### Uninstalling
-Remove the app the usual way for your platform. The auto-updated `yt-dlp` lives in
-a regenerable cache dir; on Windows the uninstaller removes it automatically, on
-macOS/Linux it is harmless to leave but can be deleted manually:
-- **macOS:** `~/Library/Caches/com.shokz.audio/`
-- **Linux:** `~/.cache/com.shokz.audio/`
+Tide makes preparation legible in one place:
 
-Downloaded audio is stored separately (your chosen library folder) and is never
-removed by uninstalling.
+- Add supported media to an offline library.
+- Set a listening speed before preparation.
+- Review local items and their readiness state.
+- Connect a compatible waterproof device and sync deliberately.
+- Use waterline motion as feedback for preparation and transfer progress.
 
-### Running from Source
-1. Ensure you have Rust and Node.js installed.
-2. Clone the repository.
-3. Install frontend dependencies:
+## Key Features
+
+- **Offline library** — a local collection for media prepared for the water.
+- **Media preparation** — supported media links are prepared as device-ready audio, with optional speed adjustment and long-form segmentation.
+- **Device sync workspace** — local and device libraries are shown side by side so transfer state is easy to understand.
+- **Water-led feedback** — the waterline, rising sync layer, and earpiece completion flicker make progress visible without interrupting the workflow.
+- **Recording previews** — local-library and connected-device preview states support portfolio demonstrations without requiring hardware.
+
+## Interaction Design
+
+The landing view is intentionally quiet: add media, choose a pace, and pull it into Tide. The waterline responds as preparation progresses. When the library is opened, a water-forward transition carries the user into the desktop workspace.
+
+Sync is an explicit action. A foreground water layer rises quickly and eases at the end, while the device library confirms completion with a subtle flicker. Scrolling upward from the Library returns to the landing view through the reverse transition.
+
+## Architecture
+
+```text
+Supported Media Source
+          ↓
+   Preparation Service
+          ↓
+    Offline Library
+          ↓
+      Sync Service
+          ↓
+Compatible Device
+```
+
+- **Frontend:** React components render the landing, library, sync workspace, and water-motion states.
+- **Desktop shell:** Tauri provides the native window, file dialogs, and command bridge.
+- **Local workflow:** Rust manages library storage, media preparation, removable-device discovery, and file copying.
+- **Progress system:** command events update the UI, waterline, and preparation states without blocking the desktop experience.
+
+## Tech Stack
+
+- Tauri 2
+- React 19 + TypeScript
+- Rust
+- Vite + Tailwind CSS
+- FFmpeg for local audio preparation
+- `yt-dlp` as a bundled media-source adapter
+
+## Design Decisions
+
+- **Keep the source abstract.** Tide asks for a supported media link, keeping the product centered on preparation rather than any single platform.
+- **Make transfer intentional.** Sync happens in its own workspace after a device is connected; it is not hidden inside import.
+- **Use motion as state.** Water is not decoration—the waterline communicates preparation and sync progress.
+- **Preserve desktop context.** Library location, removable storage, and file-level states are first-class parts of the experience.
+- **Build for demonstration.** Preview controls make key hardware states reproducible for user testing and portfolio recordings.
+
+## Future Exploration
+
+- Native device integrations for compatible waterproof players
+- Drag-and-drop local media import
+- Richer collection management, tags, and swim-session playlists
+- Device-specific capacity planning and offline recommendations
+- Accessibility settings for motion intensity and contrast
+
+## Running from Source
+
+1. Install Node.js and Rust.
+2. Install dependencies:
+
    ```bash
-   cd shokz-audio-app
    npm install
    ```
-4. Run the development server:
+
+3. Launch the desktop app:
+
    ```bash
    npm run tauri dev
    ```
 
-## Usage
+## Project Note
 
-1. **Add Content**: Paste a YouTube or Apple Podcast URL into the input field.
-2. **Adjust Speed**: Select your preferred playback speed (default 1.0x).
-3. **Download**: Click "Add" to start processing.
-4. **Sync**: Connect your USB device. Select it from the dropdown to automatically sync files.
-
-## Planned Features
-- **UI Enhancements**: Improved progress visualization.
+This project demonstrates interaction design and desktop workflow concepts. Users should only import media they are authorized to use.

@@ -88,7 +88,7 @@ fn save_config(config: &AppConfig) -> Result<(), String> {
     Ok(())
 }
 
-// URL validation command
+// Supported-media-link validation command.
 #[tauri::command]
 fn validate_url(url: String) -> ValidationResult {
     let url = url.trim();
@@ -101,28 +101,28 @@ fn validate_url(url: String) -> ValidationResult {
         };
     }
 
-    // YouTube URL patterns
+    // Supported hosted-video URL patterns.
     if url.contains("youtube.com/watch") || url.contains("youtu.be/") {
         return ValidationResult {
             valid: true,
             source_type: Some("youtube".to_string()),
-            message: "✓ YouTube video detected".to_string(),
+            message: "✓ Supported media source detected".to_string(),
         };
     }
 
-    // Apple Podcasts URL pattern
+    // Supported podcast URL pattern.
     if url.contains("podcasts.apple.com") {
         return ValidationResult {
             valid: true,
             source_type: Some("apple_podcast".to_string()),
-            message: "✓ Apple Podcast detected".to_string(),
+            message: "✓ Supported media source detected".to_string(),
         };
     }
 
     ValidationResult {
         valid: false,
         source_type: None,
-        message: "⚠ Unsupported URL".to_string(),
+        message: "⚠ Unsupported media link".to_string(),
     }
 }
 
@@ -298,7 +298,7 @@ async fn delete_audio_files(_file_ids: Vec<String>, filenames: Vec<String>, usb_
     Ok(())
 }
 
-// Download audio from YouTube or Apple Podcasts
+// Prepare audio from a supported media source for the offline library.
 #[tauri::command]
 async fn download_audio(
     app: tauri::AppHandle,
@@ -330,7 +330,7 @@ async fn get_metadata(app: &tauri::AppHandle, url: &str) -> Result<(f64, String)
         .output().await.map_err(|e| e.to_string())?;
 
     if !output.status.success() {
-        return Err("Failed to fetch metadata".to_string());
+        return Err("Unable to read media details".to_string());
     }
 
     let stdout = String::from_utf8_lossy(&output.stdout);
@@ -379,10 +379,10 @@ async fn download_audio_task(
     storage_path: String,
     download_id: String,
 ) -> Result<(), String> {
-    // Emit starting status
+    // Emit the first user-facing preparation status.
     let _ = app.emit("download-progress", serde_json::json!({
         "id": download_id,
-        "log": "Fetching metadata...",
+        "log": "Reviewing media…",
         "status": "downloading",
     }));
 
@@ -390,8 +390,8 @@ async fn download_audio_task(
     let (duration, title) = match get_metadata(&app, &url).await {
         Ok(data) => data,
         Err(e) => {
-             // Fallback to basic download if metadata fetch fails (e.g. live streams or some sites)
-             eprintln!("Metadata fetch failed: {}, proceeding with simple download", e);
+             // Fall back to direct preparation when media details are unavailable.
+             eprintln!("Media detail lookup failed: {}, proceeding with direct preparation", e);
              return download_simple(&app, &url, speed, &storage_path, &download_id).await;
         }
     };
@@ -407,13 +407,13 @@ async fn download_audio_task(
         // Smart Chunking Mode
         let _ = app.emit("download-progress", serde_json::json!({
             "id": download_id,
-            "log": format!("Smart chunking: Splitting {} min audio into {} chunks...", (effective_duration/60.0).round(), num_chunks),
+            "log": format!("Preparing {} listening segments for your device…", num_chunks),
             "status": "downloading",
         }));
 
         download_and_chunk(&app, &url, speed, &storage_path, &download_id, &title, num_chunks, effective_duration).await
     } else {
-        // Standard Download
+        // Standard preparation path.
         download_simple(&app, &url, speed, &storage_path, &download_id).await
     }
 }
@@ -428,31 +428,31 @@ async fn download_and_chunk(
     num_chunks: u32,
     duration: f64,
 ) -> Result<(), String> {
-    // 1. Download full file to temp name
+    // 1. Prepare the full source into a temporary local file.
     let temp_filename = format!("{}_temp", uuid::Uuid::new_v4());
     let output_template = format!("{}/{}.%(ext)s", storage_path, temp_filename);
 
     let _ = app.emit("download-progress", serde_json::json!({
         "id": download_id,
-        "log": "Downloading full audio file...",
+        "log": "Preparing media for offline listening…",
         "status": "downloading",
     }));
 
-    // Reuse simple download logic but with temp output
+    // Reuse the standard preparation path with temporary output.
     run_yt_dlp(app, url, speed, &output_template, download_id, false).await?;
 
-    // Find the downloaded file (it could be .mp3)
+    // Find the prepared temporary file.
     let temp_path_base = std::path::Path::new(storage_path).join(&temp_filename);
     let temp_path = temp_path_base.with_extension("mp3");
 
     if !temp_path.exists() {
-        return Err("Failed to find downloaded temp file".to_string());
+        return Err("Prepared temporary file was not found".to_string());
     }
 
     // 2. Split using ffmpeg
     let _ = app.emit("download-progress", serde_json::json!({
         "id": download_id,
-        "log": "Splitting audio into chunks...",
+        "log": "Optimizing media for device storage…",
         "status": "downloading",
     }));
 
@@ -580,8 +580,8 @@ async fn run_yt_dlp(
             let line = line.trim();
             if line.is_empty() { continue; }
 
-            // yt-dlp emits lines such as "[download]  42.7% ...". Forward the
-            // percentage so Tide can make the waterline a real download indicator.
+            // The media adapter emits percentages. Forward them so Tide can make
+            // the waterline a real preparation indicator.
             let progress = line
                 .split_whitespace()
                 .find_map(|part| part.strip_suffix('%')?.parse::<f64>().ok());
@@ -596,9 +596,15 @@ async fn run_yt_dlp(
                 }
             }
 
+            let display_log = match progress {
+                Some(value) => format!("Preparing media · {:.0}%", value),
+                None if filename.is_some() => "Adding to offline library…".to_string(),
+                None => "Preparing media…".to_string(),
+            };
+
             let _ = app.emit("download-progress", serde_json::json!({
                 "id": download_id,
-                "log": line,
+                "log": display_log,
                 "status": "downloading",
                 "filename": filename,
                 "progress": progress

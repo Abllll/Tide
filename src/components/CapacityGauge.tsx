@@ -13,7 +13,7 @@ export function CapacityGauge({ device, className = "" }: CapacityGaugeProps) {
     return (
       <div className={`flex items-center gap-2 text-xs text-muted-foreground ${className}`}>
         <HardDrive className="h-4 w-4" />
-        No earpiece connected — files will save locally.
+        No earpiece connected — media stays in your offline library.
       </div>
     );
   }
