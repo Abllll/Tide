@@ -13,7 +13,7 @@ use tauri::Manager;
 
 mod ytdlp;
 
-const CONFIG_FILENAME: &str = ".shokz-audio-config.json";
+const CONFIG_FILENAME: &str = ".tide-config.json";
 
 #[derive(Debug, Serialize, Deserialize)]
 struct AppConfig {

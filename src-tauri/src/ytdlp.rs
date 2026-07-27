@@ -116,7 +116,7 @@ async fn update_if_stale(app: &tauri::AppHandle) -> Result<(), String> {
     let mut meta = read_meta(&meta_path);
 
     let client = reqwest::Client::builder()
-        .user_agent("shokz-audio")
+        .user_agent("tide")
         // Some networks reset HTTP/2 streams to GitHub mid-transfer (observed as
         // "connection closed via error"); HTTP/1.1 is reliable and costs nothing here.
         .http1_only()
